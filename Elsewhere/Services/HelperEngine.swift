@@ -62,7 +62,9 @@ enum HelperEngine {
                                tunnelConnected: true,
                                engine: .builtIn,
                                connection: d["connection"] as? String,
-                               wirelessEnabled: d["wifi"] as? Bool)
+                               wirelessEnabled: d["wifi"] as? Bool,
+                               timeZone: d["timeZone"] as? String,
+                               cellular: d["cellular"] as? Bool)
         }
     }
 

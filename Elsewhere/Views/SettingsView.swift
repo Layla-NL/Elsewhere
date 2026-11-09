@@ -41,6 +41,10 @@ struct SettingsView: View {
                     }
                 }
                 Divider()
+                SettingRow(title: "重新连接后恢复定位",
+                           detail: "设备重新启动后，再次连接时自动改回上次的位置。",
+                           isOn: $model.autoRestore)
+                Divider()
                 SettingRow(title: "全局快捷键 \(HotKey.displayString)",
                            detail: "随时按下就跟随代理出口改定位，结果用系统通知告诉你。",
                            isOn: $model.hotKeyEnabled)

@@ -20,6 +20,10 @@ struct PhoneDevice: Identifiable, Equatable {
     var connection: String? = nil
     /// 是否开启了无线连接（访达里的「连接 Wi-Fi 时显示此 iPhone」）；nil 表示不知道。
     var wirelessEnabled: Bool? = nil
+    /// 设备当前的时区（IANA 名称）；nil 表示不知道。
+    var timeZone: String? = nil
+    /// 有蜂窝网络：「自动设定时区」以运营商为准，不跟随定位。
+    var cellular: Bool? = nil
 
     var isWireless: Bool { connection == "network" }
 

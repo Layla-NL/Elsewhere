@@ -141,6 +141,10 @@ struct DeviceInfo {
     developer_mode: Option<bool>,
     /// Finder's "Show this iPhone when on Wi-Fi"; None before trust.
     wifi: Option<bool>,
+    /// IANA time zone the device uses now, such as "Asia/Singapore"; None before trust.
+    time_zone: Option<String>,
+    /// Has a cellular radio; its automatic time zone then follows the carrier, not the location.
+    cellular: Option<bool>,
     error: Option<String>,
 }
 
@@ -180,6 +184,8 @@ async fn list() -> Outcome {
             paired: false,
             developer_mode: None,
             wifi: None,
+            time_zone: None,
+            cellular: None,
             error: None,
         };
         if let Err(e) = describe(&provider, &mut info).await {
@@ -221,6 +227,11 @@ async fn describe(provider: &UsbmuxdProvider, info: &mut DeviceInfo) -> Result<(
         info.product_type = text(&all, "ProductType").or(info.product_type.take());
         info.device_class = text(&all, "DeviceClass").or(info.device_class.take());
         info.os_version = text(&all, "ProductVersion").or(info.os_version.take());
+        info.time_zone = text(&all, "TimeZone");
+        info.cellular = all
+            .as_dictionary()
+            .and_then(|d| d.get("TelephonyCapability"))
+            .and_then(|v| v.as_boolean());
     }
     info.developer_mode = lockdown
         .get_value(Some("DeveloperModeStatus"), Some("com.apple.security.mac.amfi"))

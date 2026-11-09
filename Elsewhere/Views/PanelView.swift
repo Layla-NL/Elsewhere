@@ -164,6 +164,20 @@ private struct CurrentLocationCard: View {
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
+                if let hint = model.timeZoneHint {
+                    Label(hint, systemImage: "clock.badge.exclamationmark")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 2)
+                }
+                Text(model.autoRestore
+                     ? "\(model.status.device?.kind ?? "iPhone") 重新启动后，再次连接时会自动改回。"
+                     : "重新启动 \(model.status.device?.kind ?? "iPhone") 后会恢复真实定位。")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 2)
             } else {
                 Label("正在使用真实定位", systemImage: "location")
                     .font(.callout.weight(.medium))
@@ -171,11 +185,6 @@ private struct CurrentLocationCard: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Text("重新启动 \(model.status.device?.kind ?? "iPhone") 后会恢复真实定位。")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 2)
         }
         .card()
     }

@@ -187,6 +187,25 @@ enum Geo {
         item.placemark.coordinate
     }
 
+    /// 坐标所在的时区。国区 Mac 的地图数据查不到海外的时区，查不到就用最近的时区代表城市。
+    static func timeZone(for coordinate: CLLocationCoordinate2D) async -> TimeZone? {
+        let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        var found: TimeZone?
+        if #available(macOS 26.0, *) {
+            if let request = MKReverseGeocodingRequest(location: location) {
+                found = try? await request.mapItems.first?.timeZone
+            }
+        } else {
+            found = await legacyTimeZone(location)
+        }
+        return found ?? ZoneTable.nearest(to: coordinate)
+    }
+
+    @available(macOS, deprecated: 26.0)
+    private static func legacyTimeZone(_ location: CLLocation) async -> TimeZone? {
+        try? await CLGeocoder().reverseGeocodeLocation(location).first?.timeZone
+    }
+
     /// 坐标 → 中文地名（城市优先）。
     static func placeName(for coordinate: CLLocationCoordinate2D) async -> String? {
         let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
@@ -205,5 +224,52 @@ enum Geo {
     private static func legacyPlaceName(_ location: CLLocation, locale: Locale) async -> String? {
         guard let p = try? await CLGeocoder().reverseGeocodeLocation(location, preferredLocale: locale).first else { return nil }
         return p.locality ?? p.administrativeArea ?? p.name ?? p.country
+    }
+}
+
+/// macOS 自带的时区表（/usr/share/zoneinfo/zone.tab）：每个时区一个代表城市的坐标。
+enum ZoneTable {
+    private struct Zone {
+        let latitude: Double
+        let longitude: Double
+        let identifier: String
+    }
+
+    private static let zones: [Zone] = {
+        guard let text = try? String(contentsOfFile: "/usr/share/zoneinfo/zone.tab", encoding: .utf8) else { return [] }
+        return text.split(separator: "\n").compactMap { line -> Zone? in
+            guard !line.hasPrefix("#") else { return nil }
+            let columns = line.split(separator: "\t")
+            guard columns.count >= 3, let (lat, lon) = parse(String(columns[1])) else { return nil }
+            return Zone(latitude: lat, longitude: lon, identifier: String(columns[2]))
+        }
+    }()
+
+    /// ISO 6709：±DDMM±DDDMM 或 ±DDMMSS±DDDMMSS。
+    private static func parse(_ text: String) -> (Double, Double)? {
+        let chars = Array(text)
+        guard let split = chars.dropFirst().firstIndex(where: { $0 == "+" || $0 == "-" }) else { return nil }
+        func degrees(_ part: ArraySlice<Character>, degreeDigits: Int) -> Double? {
+            guard let sign = part.first, part.count >= 1 + degreeDigits + 2 else { return nil }
+            let digits = part.dropFirst()
+            let d = Double(String(digits.prefix(degreeDigits))) ?? .nan
+            let m = Double(String(digits.dropFirst(degreeDigits).prefix(2))) ?? .nan
+            let s = digits.count > degreeDigits + 2 ? Double(String(digits.dropFirst(degreeDigits + 2).prefix(2))) ?? 0 : 0
+            let value = d + m / 60 + s / 3600
+            guard value.isFinite else { return nil }
+            return sign == "-" ? -value : value
+        }
+        guard let lat = degrees(chars[..<split], degreeDigits: 2),
+              let lon = degrees(chars[split...], degreeDigits: 3) else { return nil }
+        return (lat, lon)
+    }
+
+    static func nearest(to coordinate: CLLocationCoordinate2D) -> TimeZone? {
+        let here = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        let zone = zones.min {
+            here.distance(from: CLLocation(latitude: $0.latitude, longitude: $0.longitude))
+                < here.distance(from: CLLocation(latitude: $1.latitude, longitude: $1.longitude))
+        }
+        return zone.flatMap { TimeZone(identifier: $0.identifier) }
     }
 }

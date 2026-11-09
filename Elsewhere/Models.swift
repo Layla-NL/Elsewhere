@@ -58,6 +58,8 @@ struct AppliedLocation: Codable, Equatable {
     var source: LocationSource
     var ip: String?
     var deviceName: String
+    /// 改的是哪台设备（UDID）。旧版本存的记录里没有。
+    var deviceID: String?
 }
 
 /// 实际控制某台设备的引擎。

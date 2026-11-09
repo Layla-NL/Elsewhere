@@ -1,3 +1,4 @@
+import CoreLocation
 import Foundation
 import ServiceManagement
 import SwiftUI
@@ -17,6 +18,7 @@ final class AppModel: ObservableObject {
         static let selectedPhone = "selectedPhoneID"
         static let engineMode = "engineMode"
         static let wirelessDevices = "wirelessDevices"
+        static let autoRestore = "autoRestore"
     }
 
     static let devicePollInterval: Duration = .seconds(4)
@@ -35,7 +37,13 @@ final class AppModel: ObservableObject {
     }
 
     @Published private(set) var applied: AppliedLocation? {
-        didSet { save(applied, Key.applied) }
+        didSet {
+            save(applied, Key.applied)
+            if applied?.latitude != oldValue?.latitude || applied?.longitude != oldValue?.longitude {
+                pendingRestore = [:]
+                updateAppliedTimeZone()
+            }
+        }
     }
 
     @Published var cities: [Place] {
@@ -82,6 +90,20 @@ final class AppModel: ObservableObject {
         return "无线连接需要和 Mac 在同一 Wi-Fi，并在\(kind)的无线局域网设置中关闭「私有无线局域网地址」。"
     }
 
+    /// 设备重新连接（比如重启后）时，自动改回上次的位置。
+    @Published var autoRestore: Bool {
+        didSet { defaults.set(autoRestore, forKey: Key.autoRestore) }
+    }
+
+    /// 当前修改的位置所在的时区，用来和设备的时区比对。
+    @Published private(set) var appliedTimeZone: TimeZone?
+
+    /// 上一次刷新时在线的设备；nil 表示还没刷新过（刚启动时不算「重新连接」）。
+    private var presentIDs: Set<String>?
+    /// 等待恢复定位的设备 → 已经尝试的次数。
+    private var pendingRestore: [String: Int] = [:]
+    private static let restoreAttempts = 15
+
     /// 设置里的「定位方式」。
     @Published var engineMode: EngineMode {
         didSet {
@@ -108,6 +130,8 @@ final class AppModel: ObservableObject {
         selectedPhoneID = UserDefaults.standard.string(forKey: Key.selectedPhone)
         engineMode = EngineMode(rawValue: UserDefaults.standard.string(forKey: Key.engineMode) ?? "") ?? .auto
         wirelessDevices = UserDefaults.standard.dictionary(forKey: Key.wirelessDevices) as? [String: String] ?? [:]
+        autoRestore = UserDefaults.standard.object(forKey: Key.autoRestore) as? Bool ?? true
+        updateAppliedTimeZone()
         refreshLaunchAtLogin()
         start()
     }
@@ -183,7 +207,8 @@ final class AppModel: ObservableObject {
                         found[i] = PhoneDevice(id: b.id, name: b.name, model: phone.model, osVersion: b.osVersion,
                                                platform: b.platform, paired: b.paired, developerMode: b.developerMode,
                                                stateText: b.stateText, tunnelConnected: b.tunnelConnected, engine: .builtIn,
-                                               connection: b.connection, wirelessEnabled: b.wirelessEnabled)
+                                               connection: b.connection, wirelessEnabled: b.wirelessEnabled,
+                                               timeZone: b.timeZone, cellular: b.cellular)
                     } else {
                         found.append(phone)
                     }
@@ -200,6 +225,13 @@ final class AppModel: ObservableObject {
             return
         }
         phones = found
+        // 只算真的连得上的：Xcode 会一直列出认识的设备，哪怕它正在重启。
+        let ids = Set(found.filter { $0.engine == .builtIn || $0.tunnelConnected }.map(\.id))
+        if let previous = presentIDs, autoRestore, let id = applied?.deviceID,
+           ids.contains(id), !previous.contains(id), pendingRestore[id] == nil {
+            pendingRestore[id] = 0
+        }
+        presentIDs = ids
         for phone in found where phone.engine == .builtIn {
             if phone.wirelessEnabled == true, wirelessDevices[phone.id] == nil {
                 wirelessDevices[phone.id] = phone.kind
@@ -208,6 +240,57 @@ final class AppModel: ObservableObject {
             }
         }
         recomputeStatus()
+        await restorePending()
+    }
+
+    // MARK: 重新连接后恢复
+
+    /// 设备重启后模拟定位会失效。重新连上时把上次的位置再设一次；刚开机还锁着屏，就过一会儿再试。
+    private func restorePending() async {
+        guard busy == nil, let a = applied, let id = a.deviceID, let tries = pendingRestore[id],
+              let phone = phones.first(where: { $0.id == id }),
+              phone.paired, phone.reachable, phone.developerMode != false else { return }
+        busy = "正在恢复定位…"
+        let result = await setLocation(on: phone, latitude: a.latitude, longitude: a.longitude)
+        busy = nil
+        if result.ok {
+            pendingRestore[id] = nil
+            report(.success, "已恢复到 \(a.name)", detail: "\(phone.name) 重新连接后，已改回上次的位置。", origin: .background)
+        } else if tries + 1 < Self.restoreAttempts {
+            pendingRestore[id] = tries + 1
+        } else {
+            pendingRestore[id] = nil
+            report(.failure, "无法恢复定位", detail: result.detail ?? result.title, origin: .background)
+        }
+    }
+
+    // MARK: 时区
+
+    private func updateAppliedTimeZone() {
+        guard let a = applied else {
+            appliedTimeZone = nil
+            return
+        }
+        let coordinate = CLLocationCoordinate2D(latitude: a.latitude, longitude: a.longitude)
+        Task { [weak self] in
+            let zone = await Geo.timeZone(for: coordinate)
+            guard let self, self.applied?.latitude == a.latitude, self.applied?.longitude == a.longitude else { return }
+            self.appliedTimeZone = zone
+        }
+    }
+
+    /// 设备的时区和当前修改的位置对不上时给出提示。改完一分钟内不提示，给系统留出自动更新的时间。
+    var timeZoneHint: String? {
+        guard let a = applied, let expected = appliedTimeZone, Date().timeIntervalSince(a.date) > 60,
+              let phone = phones.first(where: { $0.id == a.deviceID }),
+              let current = phone.timeZone.flatMap(TimeZone.init(identifier:)),
+              current.secondsFromGMT() != expected.secondsFromGMT() else { return nil }
+        let name = current.localizedName(for: .generic, locale: Locale(identifier: "zh_Hans")) ?? current.identifier
+        // 有蜂窝网络时，自动时区以运营商为准，只能手动选。
+        if phone.cellular == false {
+            return "\(phone.kind) 的时区（\(name)）与定位不一致。在「设置」>「通用」>「日期与时间」中打开「自动设定时区」。"
+        }
+        return "\(phone.kind) 的时区（\(name)）与定位不一致。在「设置」>「通用」>「日期与时间」中关闭「自动设定时区」，然后选择同一时区的城市。"
     }
 
     private func recomputeStatus() {
@@ -285,7 +368,7 @@ final class AppModel: ObservableObject {
         busy = nil
         if result.ok {
             applied = AppliedLocation(name: name, latitude: latitude, longitude: longitude, date: Date(),
-                                      source: source, ip: ip, deviceName: phone.name)
+                                      source: source, ip: ip, deviceName: phone.name, deviceID: phone.id)
             var detail = Place.format(latitude, longitude)
             if let ip { detail += " · IP \(ip)" }
             report(.success, "已改到 \(name)", detail: detail, origin: origin)
