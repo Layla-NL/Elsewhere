@@ -41,6 +41,10 @@ struct SettingsView: View {
                     }
                 }
                 Divider()
+                SettingRow(title: "同时修改所有设备",
+                           detail: "连着多台 iPhone 或 iPad 时，一次全部修改。",
+                           isOn: $model.applyToAll)
+                Divider()
                 SettingRow(title: "重新连接后恢复定位",
                            detail: "设备重新启动后，再次连接时自动改回上次的位置。",
                            isOn: $model.autoRestore)

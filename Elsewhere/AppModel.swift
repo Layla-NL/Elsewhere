@@ -5,6 +5,9 @@ import SwiftUI
 
 @MainActor
 final class AppModel: ObservableObject {
+    /// 整个 App 共用一个，快捷指令也用它。
+    static let shared = AppModel()
+
     enum Page { case main, cities, settings }
 
     /// 操作是谁发起的：面板里点的，还是快捷键 / 自动跟随（面板可能没打开，要发通知）。
@@ -21,6 +24,7 @@ final class AppModel: ObservableObject {
         static let autoRestore = "autoRestore"
         static let exitFromPhone = "exitFromPhone"
         static let phoneProxy = "phoneProxy"
+        static let applyToAll = "applyToAll"
     }
 
     static let devicePollInterval: Duration = .seconds(4)
@@ -90,6 +94,11 @@ final class AppModel: ObservableObject {
               !phones.contains(where: { wirelessDevices[$0.id] != nil && $0.engine == .builtIn }) else { return nil }
         let kind = Set(wirelessDevices.values).count == 1 ? wirelessDevices.values.first! : "设备"
         return "无线连接需要和 Mac 在同一 Wi-Fi，并在\(kind)的无线局域网设置中关闭「私有无线局域网地址」。"
+    }
+
+    /// 同时修改所有已连接、已就绪的设备。
+    @Published var applyToAll: Bool {
+        didSet { defaults.set(applyToAll, forKey: Key.applyToAll) }
     }
 
     /// 出口来源：false 为本机，true 为手机（经手机代理 App 共享的代理查询）。
@@ -166,6 +175,7 @@ final class AppModel: ObservableObject {
         wirelessDevices = UserDefaults.standard.dictionary(forKey: Key.wirelessDevices) as? [String: String] ?? [:]
         autoRestore = UserDefaults.standard.object(forKey: Key.autoRestore) as? Bool ?? true
         exitFromPhone = UserDefaults.standard.bool(forKey: Key.exitFromPhone)
+        applyToAll = UserDefaults.standard.bool(forKey: Key.applyToAll)
         phoneProxy = UserDefaults.standard.string(forKey: Key.phoneProxy) ?? ""
         updateAppliedTimeZone()
         refreshLaunchAtLogin()
@@ -263,9 +273,10 @@ final class AppModel: ObservableObject {
         phones = found
         // 只算真的连得上的：Xcode 会一直列出认识的设备，哪怕它正在重启。
         let ids = Set(found.filter { $0.engine == .builtIn || $0.tunnelConnected }.map(\.id))
-        if let previous = presentIDs, autoRestore, let id = applied?.deviceID,
-           ids.contains(id), !previous.contains(id), pendingRestore[id] == nil {
-            pendingRestore[id] = 0
+        if let previous = presentIDs, autoRestore {
+            for id in applied?.devices ?? [] where ids.contains(id) && !previous.contains(id) && pendingRestore[id] == nil {
+                pendingRestore[id] = 0
+            }
         }
         presentIDs = ids
         for phone in found where phone.engine == .builtIn {
@@ -283,9 +294,15 @@ final class AppModel: ObservableObject {
 
     /// 设备重启后模拟定位会失效。重新连上时把上次的位置再设一次；刚开机还锁着屏，就过一会儿再试。
     private func restorePending() async {
-        guard busy == nil, let a = applied, let id = a.deviceID, let tries = pendingRestore[id],
-              let phone = phones.first(where: { $0.id == id }),
-              phone.paired, phone.reachable, phone.developerMode != false else { return }
+        guard let a = applied else { return }
+        for id in a.devices where pendingRestore[id] != nil {
+            await restore(id, to: a)
+        }
+    }
+
+    private func restore(_ id: String, to a: AppliedLocation) async {
+        guard busy == nil, let tries = pendingRestore[id],
+              let phone = phones.first(where: { $0.id == id }), isReady(phone) else { return }
         busy = "正在恢复定位…"
         let result = await setLocation(on: phone, latitude: a.latitude, longitude: a.longitude)
         busy = nil
@@ -318,9 +335,12 @@ final class AppModel: ObservableObject {
     /// 设备的时区和当前修改的位置对不上时给出提示。改完一分钟内不提示，给系统留出自动更新的时间。
     var timeZoneHint: String? {
         guard let a = applied, let expected = appliedTimeZone, Date().timeIntervalSince(a.date) > 60,
-              let phone = phones.first(where: { $0.id == a.deviceID }),
-              let current = phone.timeZone.flatMap(TimeZone.init(identifier:)),
-              current.secondsFromGMT() != expected.secondsFromGMT() else { return nil }
+              let (phone, current) = a.devices.lazy.compactMap({ id -> (PhoneDevice, TimeZone)? in
+                  guard let phone = self.phones.first(where: { $0.id == id }),
+                        let zone = phone.timeZone.flatMap(TimeZone.init(identifier:)),
+                        zone.secondsFromGMT() != expected.secondsFromGMT() else { return nil }
+                  return (phone, zone)
+              }).first else { return nil }
         let name = current.localizedName(for: .generic, locale: Locale(identifier: "zh_Hans")) ?? current.identifier
         // 有蜂窝网络时，自动时区以运营商为准，只能手动选。
         if phone.cellular == false {
@@ -363,10 +383,21 @@ final class AppModel: ObservableObject {
         return nil
     }
 
+    private func isReady(_ phone: PhoneDevice) -> Bool {
+        phone.paired && phone.reachable && phone.developerMode != false
+    }
+
+    /// 要改的设备：当前选中的那台；打开「同时修改所有设备」时，再加上其他就绪的设备。
+    private func targets(origin: Origin) -> [PhoneDevice]? {
+        guard let selected = readyPhone(origin: origin) else { return nil }
+        guard applyToAll else { return [selected] }
+        return [selected] + phones.filter { $0.id != selected.id && isReady($0) }
+    }
+
     // MARK: 改定位
 
     func followExit(prefetched: ExitInfo? = nil, origin: Origin = .panel) async {
-        guard busy == nil, let phone = readyPhone(origin: origin) else { return }
+        guard busy == nil, let phones = targets(origin: origin) else { return }
         let info: ExitInfo
         if let prefetched {
             info = prefetched
@@ -388,44 +419,66 @@ final class AppModel: ObservableObject {
         lastExitFetch = Date()
         pendingExitChange = nil
         await apply(name: "出口 · \(info.displayCity)", latitude: info.latitude, longitude: info.longitude,
-                    source: .exitIP, ip: info.ip, phone: phone, origin: origin)
+                    source: .exitIP, ip: info.ip, phones: phones, origin: origin)
     }
 
     func apply(place: Place, source: LocationSource) async {
-        guard busy == nil, let phone = readyPhone(origin: .panel) else { return }
+        guard busy == nil, let phones = targets(origin: .panel) else { return }
         await apply(name: place.name, latitude: place.latitude, longitude: place.longitude,
-                    source: source, ip: nil, phone: phone, origin: .panel)
+                    source: source, ip: nil, phones: phones, origin: .panel)
     }
 
     private func apply(name: String, latitude: Double, longitude: Double, source: LocationSource,
-                       ip: String?, phone: PhoneDevice, origin: Origin) async {
+                       ip: String?, phones: [PhoneDevice], origin: Origin) async {
         busy = "正在修改定位…"
-        let result = await setLocation(on: phone, latitude: latitude, longitude: longitude)
+        var done: [PhoneDevice] = []
+        var failures: [(PhoneDevice, EngineResult)] = []
+        for phone in phones {
+            let result = await setLocation(on: phone, latitude: latitude, longitude: longitude)
+            if result.ok { done.append(phone) } else { failures.append((phone, result)) }
+        }
         busy = nil
-        if result.ok {
+        if !done.isEmpty {
             applied = AppliedLocation(name: name, latitude: latitude, longitude: longitude, date: Date(),
-                                      source: source, ip: ip, deviceName: phone.name, deviceID: phone.id)
+                                      source: source, ip: ip,
+                                      deviceName: done.map(\.name).joined(separator: "、"),
+                                      deviceID: done[0].id, deviceIDs: done.map(\.id))
+        }
+        if failures.isEmpty {
             var detail = Place.format(latitude, longitude)
             if let ip { detail += " · IP \(ip)" }
+            if done.count > 1 { detail += " · \(done.count) 台设备" }
             report(.success, "已改到 \(name)", detail: detail, origin: origin)
         } else {
-            report(.failure, result.title, detail: result.detail, origin: origin)
+            let (phone, result) = failures[0]
+            let title = phones.count > 1 ? "\(phone.name)：\(result.title)" : result.title
+            report(.failure, title, detail: result.detail, origin: origin)
             await refreshDevices()
         }
     }
 
     func clearLocation() async {
-        guard busy == nil, let phone = readyPhone(origin: .panel) else { return }
+        guard busy == nil, var phones = targets(origin: .panel) else { return }
+        // 上次一起改过、现在也连着的设备，一并恢复。
+        for id in applied?.devices ?? [] where !phones.contains(where: { $0.id == id }) {
+            if let p = self.phones.first(where: { $0.id == id }), isReady(p) { phones.append(p) }
+        }
         busy = "正在恢复真实定位…"
-        let result = await clearLocation(on: phone)
+        var failures: [(PhoneDevice, EngineResult)] = []
+        for phone in phones {
+            let result = await clearLocation(on: phone)
+            if !result.ok { failures.append((phone, result)) }
+        }
         busy = nil
-        if result.ok {
+        if failures.isEmpty {
             applied = nil
             // Wi-Fi 版 iPad 没有 GPS，要等它重新用 Wi-Fi 算出位置，这段时间会停在模拟的地方。
-            let note = phone.kind == "iPad" ? "iPad 可能需要片刻才能重新定位。" : nil
+            let note = phones.contains { $0.kind == "iPad" } ? "iPad 可能需要片刻才能重新定位。" : nil
             report(.success, "已恢复真实定位", detail: note, origin: .panel)
         } else {
-            report(.failure, result.title, detail: result.detail, origin: .panel)
+            let (phone, result) = failures[0]
+            let title = phones.count > 1 ? "\(phone.name)：\(result.title)" : result.title
+            report(.failure, title, detail: result.detail, origin: .panel)
             await refreshDevices()
         }
     }

@@ -60,6 +60,11 @@ struct AppliedLocation: Codable, Equatable {
     var deviceName: String
     /// 改的是哪台设备（UDID）。旧版本存的记录里没有。
     var deviceID: String?
+    /// 同时修改多台设备时，所有改成功的设备。
+    var deviceIDs: [String]?
+
+    /// 这次修改涉及的设备。
+    var devices: [String] { deviceIDs ?? deviceID.map { [$0] } ?? [] }
 }
 
 /// 实际控制某台设备的引擎。
