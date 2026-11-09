@@ -89,6 +89,12 @@ private struct DeviceHeader: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
             }
+            if let wirelessHint = model.wirelessHint, !model.status.isReady {
+                Text(wirelessHint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             if model.canEnableWireless {
                 Button {
                     Task { await model.enableWireless() }

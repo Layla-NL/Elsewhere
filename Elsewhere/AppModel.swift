@@ -16,6 +16,7 @@ final class AppModel: ObservableObject {
         static let hotKey = "hotKeyEnabled"
         static let selectedPhone = "selectedPhoneID"
         static let engineMode = "engineMode"
+        static let wirelessDevices = "wirelessDevices"
     }
 
     static let devicePollInterval: Duration = .seconds(4)
@@ -68,6 +69,19 @@ final class AppModel: ObservableObject {
     @Published private(set) var toolsPath: String?
     private var toolsChecked = false
 
+    /// 开过无线连接的设备：UDID → 「iPhone」或「iPad」。拔线后找不到它们时给出提示。
+    @Published private(set) var wirelessDevices: [String: String] = [:] {
+        didSet { defaults.set(wirelessDevices, forKey: Key.wirelessDevices) }
+    }
+
+    /// 开过无线连接的设备现在一台都不在：多半是设备用了私有 Wi-Fi 地址，或不在同一网络。
+    var wirelessHint: String? {
+        guard !wirelessDevices.isEmpty,
+              !phones.contains(where: { wirelessDevices[$0.id] != nil && $0.engine == .builtIn }) else { return nil }
+        let kind = Set(wirelessDevices.values).count == 1 ? wirelessDevices.values.first! : "设备"
+        return "无线连接需要和 Mac 在同一 Wi-Fi，并在\(kind)的无线局域网设置中关闭「私有无线局域网地址」。"
+    }
+
     /// 设置里的「定位方式」。
     @Published var engineMode: EngineMode {
         didSet {
@@ -93,6 +107,7 @@ final class AppModel: ObservableObject {
         hotKeyEnabled = UserDefaults.standard.object(forKey: Key.hotKey) as? Bool ?? true
         selectedPhoneID = UserDefaults.standard.string(forKey: Key.selectedPhone)
         engineMode = EngineMode(rawValue: UserDefaults.standard.string(forKey: Key.engineMode) ?? "") ?? .auto
+        wirelessDevices = UserDefaults.standard.dictionary(forKey: Key.wirelessDevices) as? [String: String] ?? [:]
         refreshLaunchAtLogin()
         start()
     }
@@ -185,6 +200,13 @@ final class AppModel: ObservableObject {
             return
         }
         phones = found
+        for phone in found where phone.engine == .builtIn {
+            if phone.wirelessEnabled == true, wirelessDevices[phone.id] == nil {
+                wirelessDevices[phone.id] = phone.kind
+            } else if phone.wirelessEnabled == false, wirelessDevices[phone.id] != nil {
+                wirelessDevices[phone.id] = nil
+            }
+        }
         recomputeStatus()
     }
 

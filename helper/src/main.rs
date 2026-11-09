@@ -58,6 +58,13 @@ type Outcome = Result<Value, Failure>;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
+    // ELSEWHERE_LOG=debug prints idevice's log to stderr; stdout stays one JSON object.
+    if let Ok(filter) = std::env::var("ELSEWHERE_LOG") {
+        tracing_subscriber::fmt()
+            .with_env_filter(filter)
+            .with_writer(std::io::stderr)
+            .init();
+    }
     let args: Vec<String> = std::env::args().skip(1).collect();
     let outcome = run(&args).await;
     let output = match outcome {
