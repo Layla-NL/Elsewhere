@@ -1,7 +1,8 @@
 import Foundation
 
 /// 内置引擎：App 自带的 `elsewhere-helper`（基于开源的 idevice），不需要 Xcode。
-/// 通过 macOS 自带的 usbmuxd 连接设备，所以需要数据线，或在访达里开启「通过 Wi-Fi 显示」。
+/// 通过 macOS 自带的 usbmuxd 连接设备：插数据线，或者设备开启了无线连接（访达里的
+/// 「连接 Wi-Fi 时显示此 iPhone」）并和 Mac 在同一网络。
 enum HelperEngine {
     /// 打包在 Contents/Helpers 里；开发时可以用 `-helperPath` 指向 cargo 编出来的文件。
     static var executable: String? {

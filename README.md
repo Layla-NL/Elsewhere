@@ -10,7 +10,7 @@
 - **地图窗口**：大地图上点一下就能选点，也可以搜地名或输入坐标；地图上同时标出 iPhone 当前位置和代理出口，选好后一键「应用到 iPhone」（⌘↩），也能直接恢复真实定位
 - **海外地名也搜得到**：国区 Mac 的 Apple 地图用的是高德数据，海外地名基本搜不出来。Elsewhere 同时用 OpenStreetMap 搜索：边输入边联想，回车精确搜索，「东京塔」「埃菲尔铁塔」这样的中文名也能找到
 - **恢复真实定位**：一个按钮
-- **不需要 Xcode**：内置连接组件，下载就能用；装了 Xcode 的话，还能控制无线连接的设备
+- **不需要 Xcode**：内置连接组件，下载就能用；插线或无线都可以
 - **自动识别 iPhone 和 iPad**：插线自动识别，连不上时告诉你原因（没插线、没信任、没开开发者模式）
 - **全局快捷键** `⌃⌥⌘L`：随时跟随出口，结果用系统通知告诉你
 - 开机自启、深浅色模式、中文界面
@@ -27,10 +27,12 @@ Elsewhere 有两种方式，在「设置 › 定位方式」里选，默认「�
 
 | 方式 | 怎么连 | 需要 |
 | --- | --- | --- |
-| **内置** | App 自带的 `elsewhere-helper`（基于开源的 [idevice](https://github.com/jkcoxson/idevice)），通过 macOS 自带的 usbmuxd 连接 | 数据线 |
-| **Xcode** | Xcode 的 `devicectl` | 安装 Xcode；可以控制无线连接的设备 |
+| **内置** | App 自带的 `elsewhere-helper`（基于开源的 [idevice](https://github.com/jkcoxson/idevice)），通过 macOS 自带的 usbmuxd 连接 | 数据线，或开启无线连接 |
+| **Xcode** | Xcode 的 `devicectl` | 安装 Xcode |
 
-「自动」会优先用内置方式；只有 Xcode 能连上的设备（比如无线连接的）交给 Xcode，内置方式失败时也会自动换 Xcode 再试。
+「自动」会优先用内置方式；只有 Xcode 能连上的设备交给 Xcode（比如只和 Xcode 做过无线配对的设备），内置方式失败时也会自动换 Xcode 再试。
+
+**无线连接**：设备插线连一次，在访达里选中它，勾选「连接 Wi-Fi 时显示此 iPhone」并点「应用」。之后只要设备和 Mac 在同一个 Wi-Fi 上，拔线也能改定位。
 
 **开发者组件**：iOS 17 起，改定位前设备上要挂载 Apple 的开发者磁盘映像。装了 Xcode 的话它通常会自动挂好；没装的话，Elsewhere 第一次用到时会下载（约 18 MB，来自 [Apple 官方映像的镜像](https://github.com/swipt-automation/DeveloperDiskImage)），缓存在 `~/Library/Application Support/Elsewhere`。挂载时向 Apple 在线申请这台设备专属的签名，设备只接受 Apple 签过名的映像。
 
@@ -38,7 +40,7 @@ Elsewhere 有两种方式，在「设置 › 定位方式」里选，默认「�
 
 - macOS 14 或更新版本
 - iPhone 或 iPad，iOS 17 或更新版本，打开开发者模式
-- Xcode 不是必需的；装了可以控制无线连接的设备
+- Xcode 不是必需的
 
 ## 编译和安装
 
@@ -86,7 +88,7 @@ Wi-Fi 版 iPad 没有 GPS，模拟结束后要靠周围的 Wi-Fi 重新算出位
 - 开发者模式没开，或者开了还没重启
 - 信任失效：在 iPhone 上「设置 › 开发者 › 清除受信任的电脑」，然后重新连接、重新信任
 - 开发者组件下载失败：检查网络后重试；也可以在「设置 › 定位方式」里换成另一种
-- 无线连接的设备，内置方式看不到：插上数据线，或者装 Xcode 后用「自动」
+- 拔线后找不到设备：插线连一次，在访达里开启「连接 Wi-Fi 时显示此 iPhone」，并确认设备和 Mac 在同一个 Wi-Fi 上
 - 装了多个 Xcode：执行 `xcode-select -p` 确认路径对不对
 
 **出口 IP 查不到？**

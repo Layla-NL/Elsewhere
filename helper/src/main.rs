@@ -4,6 +4,7 @@
 //!   elsewhere-helper list
 //!   elsewhere-helper set <udid> <latitude> <longitude> --ddi <dir>
 //!   elsewhere-helper clear <udid>
+//!   elsewhere-helper wifi <udid> on|off
 //!
 //! Every command prints one JSON object on stdout and exits 0, even on
 //! failure, so the app can read `ok`, `code` and `error` the same way.
@@ -80,6 +81,15 @@ async fn run(args: &[String]) -> Outcome {
             set(&udid, latitude, longitude, ddi).await
         }
         Some("clear") => clear(&arg(args, 1, "udid")?).await,
+        Some("wifi") => {
+            let udid = arg(args, 1, "udid")?;
+            let on = match arg(args, 2, "on or off")?.as_str() {
+                "on" => true,
+                "off" => false,
+                _ => return Err(Failure::new("usage", "wifi takes on or off")),
+            };
+            wifi(&udid, on).await
+        }
         Some("version") => Ok(json!({ "version": env!("CARGO_PKG_VERSION") })),
         _ => Err(Failure::new("usage", "usage: elsewhere-helper list | set <udid> <lat> <lon> --ddi <dir> | clear <udid>")),
     }
@@ -219,6 +229,30 @@ async fn provider_for(udid: &str) -> Result<UsbmuxdProvider, Failure> {
         .min_by_key(|d| !matches!(d.connection_type, Connection::Usb))
         .ok_or_else(|| Failure::new("not_found", format!("{udid} is not connected")))?;
     Ok(device.to_provider(UsbmuxdAddr::default(), LABEL))
+}
+
+// MARK: Wi-Fi
+
+/// The same switch as Finder's "Show this iPhone when on Wi-Fi". Once on, usbmuxd
+/// also lists the device over the local network, so the cable can come off.
+async fn wifi(udid: &str, on: bool) -> Outcome {
+    let provider = provider_for(udid).await?;
+    let mut lockdown = LockdownClient::connect(&provider)
+        .await
+        .map_err(|e| Failure::from_idevice("lockdown", e))?;
+    let pairing = provider
+        .get_pairing_file()
+        .await
+        .map_err(|e| Failure::from_idevice("pairing record", e))?;
+    lockdown
+        .start_session(&pairing)
+        .await
+        .map_err(|e| Failure::from_idevice("lockdown session", e))?;
+    lockdown
+        .set_value("EnableWifiConnections", on.into(), Some("com.apple.mobile.wireless_lockdown"))
+        .await
+        .map_err(|e| Failure::from_idevice("wifi connections", e))?;
+    Ok(json!({ "wifi": on }))
 }
 
 // MARK: Developer disk image

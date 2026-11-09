@@ -59,10 +59,9 @@ struct SettingsView: View {
                 .labelsHidden()
                 .frame(maxWidth: .infinity)
                 VStack(alignment: .leading, spacing: 3) {
-                    EngineLine(name: "内置", available: HelperEngine.isAvailable,
-                               detail: "无需 Xcode，用数据线连接")
+                    EngineLine(name: "内置", available: HelperEngine.isAvailable, detail: "无需 Xcode")
                     EngineLine(name: "Xcode", available: model.toolsPath != nil,
-                               detail: model.toolsPath == nil ? "未安装" : "可用于无线连接的设备")
+                               detail: model.toolsPath == nil ? "未安装" : "已安装")
                 }
             }
             .card()
