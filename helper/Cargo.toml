@@ -1,0 +1,29 @@
+[package]
+name = "elsewhere-helper"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Talks to an iPhone or iPad for Elsewhere: lists devices, mounts the developer disk image, sets and clears the simulated location."
+publish = false
+
+[dependencies]
+idevice = { version = "=0.1.68", default-features = false, features = [
+  "ring",
+  "usbmuxd",
+  "core_device",
+  "core_device_proxy",
+  "rsd",
+  "xpc",
+  "tunnel_tcp_stack",
+  "mobile_image_mounter",
+  "tss",
+] }
+plist = "1.7"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1.43", features = ["rt", "macros", "time", "fs"] }
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

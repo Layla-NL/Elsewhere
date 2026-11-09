@@ -154,7 +154,7 @@ private struct CurrentLocationCard: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Text("拔线后定位仍保持；\(model.status.device?.kind ?? "iPhone") 重启后会恢复真实定位，需要重新连线再改一次。")
+            Text("重新启动 \(model.status.device?.kind ?? "iPhone") 后会恢复真实定位。")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
                 .fixedSize(horizontal: false, vertical: true)

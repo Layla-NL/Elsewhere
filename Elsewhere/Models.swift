@@ -60,6 +60,28 @@ struct AppliedLocation: Codable, Equatable {
     var deviceName: String
 }
 
+/// 实际控制某台设备的引擎。
+enum EngineKind: String, Codable {
+    /// App 内置的组件，不需要 Xcode。
+    case builtIn
+    /// Xcode 自带的 devicectl。
+    case xcode
+}
+
+/// 设置里的「定位方式」。
+enum EngineMode: String, Codable, CaseIterable, Identifiable {
+    case auto, builtIn, xcode
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .auto: return "自动"
+        case .builtIn: return "内置"
+        case .xcode: return "Xcode"
+        }
+    }
+}
+
 /// 代理出口变化时怎么处理。
 enum ExitWatchMode: String, Codable, CaseIterable, Identifiable {
     case off, notify, auto

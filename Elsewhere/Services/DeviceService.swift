@@ -14,6 +14,8 @@ struct PhoneDevice: Identifiable, Equatable {
     /// `devicectl list devices` 表格里的 State 列，例如 "available (paired)"。
     let stateText: String
     let tunnelConnected: Bool
+    /// 由哪个引擎控制这台设备。
+    var engine: EngineKind = .xcode
 
     var reachable: Bool {
         if tunnelConnected { return true }
@@ -72,22 +74,20 @@ enum DeviceStatus: Equatable {
     /// 没准备好时给出的原因和处理方法。
     var hint: String? {
         switch self {
-        case .checking:
+        case .checking, .ready:
             return nil
         case .toolsMissing:
-            return "没找到 xcrun devicectl。请从 App Store 安装 Xcode，打开一次让它装完组件；如果装了多个 Xcode，用 xcode-select 选好路径。"
+            return "未找到 Xcode。可在设置中将定位方式改为「自动」。"
         case .listFailed(let output):
-            return "读取设备列表失败：\(output)"
+            return "无法读取设备。\(output)"
         case .noDevice:
-            return "没检测到 iPhone。用数据线把手机连到这台 Mac，会自动识别。"
+            return "用数据线连接 iPhone 或 iPad。"
         case .unreachable(let d):
-            return "\(d.kind) 没插线或没解锁。插上数据线并解锁 \(d.kind)（第一次连接要在设备上点「信任」）。"
+            return "连接并解锁 \(d.kind)。"
         case .notTrusted(let d):
-            return "\(d.kind) 还没信任这台 Mac：解锁 \(d.kind)，在弹窗里点「信任」并输入锁屏密码。"
+            return "解锁 \(d.kind)，然后轻点「信任」。"
         case .developerModeOff(let d):
-            return "\(d.kind) 没开开发者模式：设置 › 隐私与安全性 › 开发者模式，打开后按提示重启 \(d.kind)，重启后解锁并确认打开。"
-        case .ready:
-            return nil
+            return "在 \(d.kind) 上打开「设置」>「隐私与安全性」>「开发者模式」，然后重新启动。"
         }
     }
 }

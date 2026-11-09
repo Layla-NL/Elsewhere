@@ -48,30 +48,49 @@ struct SettingsView: View {
             .toggleStyle(.switch)
             .card()
 
-            VStack(alignment: .leading, spacing: 4) {
-                SectionTitle(title: "环境")
-                if let path = model.toolsPath {
-                    Label("devicectl 可用", systemImage: "checkmark.circle")
-                        .font(.caption)
-                    Text(path)
-                        .font(.system(.caption2, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .textSelection(.enabled)
-                        .lineLimit(2)
-                } else {
-                    Label("没找到 xcrun devicectl，请安装 Xcode。", systemImage: "exclamationmark.triangle")
-                        .font(.caption)
+            VStack(alignment: .leading, spacing: 8) {
+                SectionTitle(title: "定位方式")
+                Picker("定位方式", selection: $model.engineMode) {
+                    ForEach(EngineMode.allCases) { mode in
+                        Text(mode.label).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(maxWidth: .infinity)
+                VStack(alignment: .leading, spacing: 3) {
+                    EngineLine(name: "内置", available: HelperEngine.isAvailable,
+                               detail: "无需 Xcode，用数据线连接")
+                    EngineLine(name: "Xcode", available: model.toolsPath != nil,
+                               detail: model.toolsPath == nil ? "未安装" : "可用于无线连接的设备")
                 }
             }
             .card()
 
-            Text("Elsewhere \(version) · 基于 Xcode 自带的 devicectl，不越狱、不装描述文件，手机上也不用装 App。")
+            Text("Elsewhere \(version)")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(14)
         .onAppear { model.refreshLaunchAtLogin() }
+    }
+}
+
+private struct EngineLine: View {
+    let name: String
+    let available: Bool
+    let detail: String
+
+    var body: some View {
+        Label {
+            Text("\(name)：\(detail)")
+        } icon: {
+            Image(systemName: available ? "checkmark.circle.fill" : "minus.circle")
+                .foregroundStyle(available ? .green : .secondary)
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
     }
 }
 

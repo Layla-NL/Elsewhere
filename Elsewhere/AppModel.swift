@@ -15,6 +15,7 @@ final class AppModel: ObservableObject {
         static let watchMode = "exitWatchMode"
         static let hotKey = "hotKeyEnabled"
         static let selectedPhone = "selectedPhoneID"
+        static let engineMode = "engineMode"
     }
 
     static let devicePollInterval: Duration = .seconds(4)
@@ -63,7 +64,17 @@ final class AppModel: ObservableObject {
 
     @Published private(set) var launchAtLogin = false
     @Published private(set) var launchAtLoginNeedsApproval = false
+    /// Xcode 的 devicectl 路径；nil 表示没装或还没检查。
     @Published private(set) var toolsPath: String?
+    private var toolsChecked = false
+
+    /// 设置里的「定位方式」。
+    @Published var engineMode: EngineMode {
+        didSet {
+            defaults.set(engineMode.rawValue, forKey: Key.engineMode)
+            Task { await refreshDevices() }
+        }
+    }
 
     var canOperate: Bool { status.isReady && busy == nil }
 
@@ -81,6 +92,7 @@ final class AppModel: ObservableObject {
         watchMode = ExitWatchMode(rawValue: UserDefaults.standard.string(forKey: Key.watchMode) ?? "") ?? .notify
         hotKeyEnabled = UserDefaults.standard.object(forKey: Key.hotKey) as? Bool ?? true
         selectedPhoneID = UserDefaults.standard.string(forKey: Key.selectedPhone)
+        engineMode = EngineMode(rawValue: UserDefaults.standard.string(forKey: Key.engineMode) ?? "") ?? .auto
         refreshLaunchAtLogin()
         start()
     }
@@ -118,26 +130,64 @@ final class AppModel: ObservableObject {
     // MARK: 设备
 
     func refreshDevices() async {
-        if toolsPath == nil {
+        let useBuiltIn = engineMode != .xcode && HelperEngine.isAvailable
+        let useXcode = engineMode != .builtIn
+        if useXcode && !toolsChecked {
             let check = await DeviceService.checkTools()
-            guard check.ok else {
-                status = .toolsMissing(check.output)
-                return
+            toolsChecked = true
+            toolsPath = check.ok ? check.stdout.trimmingCharacters(in: .whitespacesAndNewlines) : nil
+        }
+        if engineMode == .xcode && toolsPath == nil {
+            status = .toolsMissing("")
+            return
+        }
+        if engineMode == .builtIn && !HelperEngine.isAvailable {
+            status = .listFailed("找不到内置组件")
+            return
+        }
+
+        var found: [PhoneDevice] = []
+        var failures: [String] = []
+        var anySucceeded = false
+        if useBuiltIn {
+            do {
+                found = try await HelperEngine.listPhones()
+                anySucceeded = true
+            } catch DeviceService.ListError.failed(let output) {
+                failures.append(output)
+            } catch {
+                failures.append(error.localizedDescription)
             }
-            toolsPath = check.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        do {
-            phones = try await DeviceService.listPhones()
-            recomputeStatus()
-        } catch DeviceService.ListError.failed(let output) {
-            status = .listFailed(output)
-        } catch {
-            status = .listFailed(error.localizedDescription)
+        if useXcode && toolsPath != nil {
+            do {
+                for phone in try await DeviceService.listPhones() {
+                    if let i = found.firstIndex(where: { $0.id == phone.id }) {
+                        // 内置引擎能连上的设备仍由它负责，只借用 Xcode 给的完整型号名。
+                        let b = found[i]
+                        found[i] = PhoneDevice(id: b.id, name: b.name, model: phone.model, osVersion: b.osVersion,
+                                               platform: b.platform, paired: b.paired, developerMode: b.developerMode,
+                                               stateText: b.stateText, tunnelConnected: b.tunnelConnected, engine: .builtIn)
+                    } else {
+                        found.append(phone)
+                    }
+                }
+                anySucceeded = true
+            } catch DeviceService.ListError.failed(let output) {
+                failures.append(output)
+            } catch {
+                failures.append(error.localizedDescription)
+            }
         }
+        guard anySucceeded else {
+            status = .listFailed(failures.joined(separator: "\n"))
+            return
+        }
+        phones = found
+        recomputeStatus()
     }
 
     private func recomputeStatus() {
-        guard toolsPath != nil else { return }
         let phone: PhoneDevice?
         if let id = selectedPhoneID, let p = phones.first(where: { $0.id == id }) {
             phone = p
@@ -208,7 +258,7 @@ final class AppModel: ObservableObject {
     private func apply(name: String, latitude: Double, longitude: Double, source: LocationSource,
                        ip: String?, phone: PhoneDevice, origin: Origin) async {
         busy = "正在修改定位…"
-        let result = await DeviceService.setLocation(device: phone.id, latitude: latitude, longitude: longitude)
+        let result = await setLocation(on: phone, latitude: latitude, longitude: longitude)
         busy = nil
         if result.ok {
             applied = AppliedLocation(name: name, latitude: latitude, longitude: longitude, date: Date(),
@@ -217,7 +267,7 @@ final class AppModel: ObservableObject {
             if let ip { detail += " · IP \(ip)" }
             report(.success, "已改到 \(name)", detail: detail, origin: origin)
         } else {
-            report(.failure, "改定位失败", detail: result.output, origin: origin)
+            report(.failure, result.title, detail: result.detail, origin: origin)
             await refreshDevices()
         }
     }
@@ -225,19 +275,45 @@ final class AppModel: ObservableObject {
     func clearLocation() async {
         guard busy == nil, let phone = readyPhone(origin: .panel) else { return }
         busy = "正在恢复真实定位…"
-        let result = await DeviceService.clearLocation(device: phone.id)
+        let result = await clearLocation(on: phone)
         busy = nil
         if result.ok {
             applied = nil
             // Wi-Fi 版 iPad 没有 GPS，要等它重新用 Wi-Fi 算出位置，这段时间会停在模拟的地方。
-            let note = phone.kind == "iPad"
-                ? "iPad 没有 GPS 时要靠 Wi-Fi 重新定位，可能会在原地停一会儿；一直不变的话，到「设置 › 隐私与安全性 › 定位服务」关掉再打开。"
-                : nil
+            let note = phone.kind == "iPad" ? "iPad 可能需要片刻才能重新定位。" : nil
             report(.success, "已恢复真实定位", detail: note, origin: .panel)
         } else {
-            report(.failure, "恢复失败", detail: result.output, origin: .panel)
+            report(.failure, result.title, detail: result.detail, origin: .panel)
             await refreshDevices()
         }
+    }
+
+    // MARK: 引擎
+
+    /// 内置引擎失败、而 Xcode 也能连上这台设备时，自动换 Xcode 再试一次。
+    private func canFallBack(_ phone: PhoneDevice, after result: EngineResult) -> Bool {
+        engineMode == .auto && phone.engine == .builtIn && toolsPath != nil
+            && result.code != "locked" && result.code != "not_paired"
+    }
+
+    private func setLocation(on phone: PhoneDevice, latitude: Double, longitude: Double) async -> EngineResult {
+        if phone.engine == .builtIn {
+            let result = await HelperEngine.setLocation(device: phone, latitude: latitude, longitude: longitude) {
+                self.busy = "正在下载开发者组件…"
+            }
+            guard !result.ok, canFallBack(phone, after: result) else { return result }
+        }
+        let r = await DeviceService.setLocation(device: phone.id, latitude: latitude, longitude: longitude)
+        return EngineResult(ok: r.ok, title: "无法修改定位", detail: r.ok ? nil : r.output)
+    }
+
+    private func clearLocation(on phone: PhoneDevice) async -> EngineResult {
+        if phone.engine == .builtIn {
+            let result = await HelperEngine.clearLocation(device: phone)
+            guard !result.ok, canFallBack(phone, after: result) else { return result }
+        }
+        let r = await DeviceService.clearLocation(device: phone.id)
+        return EngineResult(ok: r.ok, title: "无法恢复定位", detail: r.ok ? nil : r.output)
     }
 
     // MARK: 出口 IP
