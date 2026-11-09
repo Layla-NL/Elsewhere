@@ -167,7 +167,7 @@ final class AppModel: ObservableObject {
     /// 没准备好就给出失败提示并返回 nil。
     private func readyPhone(origin: Origin) -> PhoneDevice? {
         if case .ready(let phone) = status { return phone }
-        report(.failure, "iPhone 还没准备好", detail: status.hint ?? status.badge, origin: origin)
+        report(.failure, "\(status.device?.kind ?? "iPhone") 还没准备好", detail: status.hint ?? status.badge, origin: origin)
         return nil
     }
 
@@ -229,7 +229,11 @@ final class AppModel: ObservableObject {
         busy = nil
         if result.ok {
             applied = nil
-            report(.success, "已恢复真实定位", detail: nil, origin: .panel)
+            // Wi-Fi 版 iPad 没有 GPS，要等它重新用 Wi-Fi 算出位置，这段时间会停在模拟的地方。
+            let note = phone.kind == "iPad"
+                ? "iPad 没有 GPS 时要靠 Wi-Fi 重新定位，可能会在原地停一会儿；一直不变的话，到「设置 › 隐私与安全性 › 定位服务」关掉再打开。"
+                : nil
+            report(.success, "已恢复真实定位", detail: note, origin: .panel)
         } else {
             report(.failure, "恢复失败", detail: result.output, origin: .panel)
             await refreshDevices()

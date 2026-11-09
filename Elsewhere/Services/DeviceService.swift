@@ -22,6 +22,11 @@ struct PhoneDevice: Identifiable, Equatable {
         return s.contains("available") || s.contains("connected")
     }
 
+    /// 「iPhone」「iPad」这样的类别名，用在提示文字里。
+    var kind: String {
+        model.hasPrefix("iPad") ? "iPad" : "iPhone"
+    }
+
     var subtitle: String {
         var parts: [String] = []
         if !model.isEmpty { parts.append(model) }
@@ -75,12 +80,12 @@ enum DeviceStatus: Equatable {
             return "读取设备列表失败：\(output)"
         case .noDevice:
             return "没检测到 iPhone。用数据线把手机连到这台 Mac，会自动识别。"
-        case .unreachable:
-            return "手机没插线或没解锁。插上数据线并解锁 iPhone（第一次连接要在手机上点「信任」）。"
-        case .notTrusted:
-            return "iPhone 还没信任这台 Mac：解锁手机，在弹窗里点「信任」并输入锁屏密码。"
-        case .developerModeOff:
-            return "iPhone 没开开发者模式：设置 › 隐私与安全性 › 开发者模式，打开后按提示重启手机。"
+        case .unreachable(let d):
+            return "\(d.kind) 没插线或没解锁。插上数据线并解锁 \(d.kind)（第一次连接要在设备上点「信任」）。"
+        case .notTrusted(let d):
+            return "\(d.kind) 还没信任这台 Mac：解锁 \(d.kind)，在弹窗里点「信任」并输入锁屏密码。"
+        case .developerModeOff(let d):
+            return "\(d.kind) 没开开发者模式：设置 › 隐私与安全性 › 开发者模式，打开后按提示重启 \(d.kind)，重启后解锁并确认打开。"
         case .ready:
             return nil
         }
