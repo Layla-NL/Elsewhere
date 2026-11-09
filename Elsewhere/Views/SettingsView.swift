@@ -53,6 +53,33 @@ struct SettingsView: View {
             .card()
 
             VStack(alignment: .leading, spacing: 8) {
+                SectionTitle(title: "出口来源")
+                Picker("出口来源", selection: $model.exitFromPhone) {
+                    Text("本机").tag(false)
+                    Text("手机").tag(true)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(maxWidth: .infinity)
+                if model.exitFromPhone {
+                    TextField("手机代理地址，如 192.168.1.20:1082", text: $model.phoneProxy)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(.body, design: .monospaced))
+                    Text(model.phoneProxyInvalid
+                         ? "请填写「IP 地址:端口」。"
+                         : "在手机的代理 App 中开启代理共享，填写它显示的地址和端口。手机和 Mac 需在同一 Wi-Fi。")
+                        .font(.caption)
+                        .foregroundStyle(model.phoneProxyInvalid ? .orange : .secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Text("按这台 Mac 的网络查询出口。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .card()
+
+            VStack(alignment: .leading, spacing: 8) {
                 SectionTitle(title: "定位方式")
                 Picker("定位方式", selection: $model.engineMode) {
                     ForEach(EngineMode.allCases) { mode in

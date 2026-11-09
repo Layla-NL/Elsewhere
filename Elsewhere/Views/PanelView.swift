@@ -215,7 +215,7 @@ private struct FollowExitSection: View {
             HStack(spacing: 4) {
                 Group {
                     if let e = model.exit {
-                        Text("出口 \(e.ip) · \(e.summary)")
+                        Text("\(model.exitFromPhone ? "手机出口" : "出口") \(e.ip) · \(e.summary)")
                     } else if model.exitError != nil {
                         Text("出口 IP 查询失败")
                     } else {

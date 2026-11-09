@@ -19,6 +19,8 @@ final class AppModel: ObservableObject {
         static let engineMode = "engineMode"
         static let wirelessDevices = "wirelessDevices"
         static let autoRestore = "autoRestore"
+        static let exitFromPhone = "exitFromPhone"
+        static let phoneProxy = "phoneProxy"
     }
 
     static let devicePollInterval: Duration = .seconds(4)
@@ -90,6 +92,38 @@ final class AppModel: ObservableObject {
         return "无线连接需要和 Mac 在同一 Wi-Fi，并在\(kind)的无线局域网设置中关闭「私有无线局域网地址」。"
     }
 
+    /// 出口来源：false 为本机，true 为手机（经手机代理 App 共享的代理查询）。
+    @Published var exitFromPhone: Bool {
+        didSet {
+            defaults.set(exitFromPhone, forKey: Key.exitFromPhone)
+            exitSourceChanged()
+        }
+    }
+
+    /// 手机代理共享的地址，例如 "192.168.1.20:1082"。
+    @Published var phoneProxy: String {
+        didSet {
+            defaults.set(phoneProxy, forKey: Key.phoneProxy)
+            if exitFromPhone { exitSourceChanged() }
+        }
+    }
+
+    /// 查出口用的代理；本机为 nil。选了手机但地址填错时也为 nil，并在界面上提示。
+    var exitProxy: ExitProxy? {
+        exitFromPhone ? ExitProxy(phoneProxy) : nil
+    }
+
+    var phoneProxyInvalid: Bool { exitFromPhone && ExitProxy(phoneProxy) == nil }
+
+    private func exitSourceChanged() {
+        exit = nil
+        exitError = nil
+        lastSeenIP = nil
+        lastExitFetch = nil
+        guard !phoneProxyInvalid else { return }
+        Task { await refreshExit() }
+    }
+
     /// 设备重新连接（比如重启后）时，自动改回上次的位置。
     @Published var autoRestore: Bool {
         didSet { defaults.set(autoRestore, forKey: Key.autoRestore) }
@@ -131,6 +165,8 @@ final class AppModel: ObservableObject {
         engineMode = EngineMode(rawValue: UserDefaults.standard.string(forKey: Key.engineMode) ?? "") ?? .auto
         wirelessDevices = UserDefaults.standard.dictionary(forKey: Key.wirelessDevices) as? [String: String] ?? [:]
         autoRestore = UserDefaults.standard.object(forKey: Key.autoRestore) as? Bool ?? true
+        exitFromPhone = UserDefaults.standard.bool(forKey: Key.exitFromPhone)
+        phoneProxy = UserDefaults.standard.string(forKey: Key.phoneProxy) ?? ""
         updateAppliedTimeZone()
         refreshLaunchAtLogin()
         start()
@@ -337,7 +373,7 @@ final class AppModel: ObservableObject {
         } else {
             busy = "正在查询代理出口…"
             do {
-                info = try await ExitIPService.lookup()
+                info = try await ExitIPService.lookup(proxy: exitProxy)
             } catch {
                 busy = nil
                 exitError = error.localizedDescription
@@ -446,10 +482,14 @@ final class AppModel: ObservableObject {
     // MARK: 出口 IP
 
     func refreshExit() async {
+        guard !phoneProxyInvalid else {
+            exitError = "手机代理地址无效"
+            return
+        }
         exitLoading = true
         defer { exitLoading = false }
         do {
-            let info = try await ExitIPService.lookup()
+            let info = try await ExitIPService.lookup(proxy: exitProxy)
             exit = info
             exitError = nil
             lastSeenIP = info.ip
@@ -471,7 +511,8 @@ final class AppModel: ObservableObject {
     }
 
     private func checkExitChange() async {
-        guard let ip = try? await ExitIPService.currentIP() else { return }
+        guard !phoneProxyInvalid else { return }
+        guard let ip = try? await ExitIPService.currentIP(proxy: exitProxy) else { return }
         guard let previous = lastSeenIP else {
             lastSeenIP = ip
             return
@@ -479,7 +520,7 @@ final class AppModel: ObservableObject {
         guard ip != previous else { return }
         lastSeenIP = ip
 
-        guard let info = try? await ExitIPService.lookup() else { return }
+        guard let info = try? await ExitIPService.lookup(proxy: exitProxy) else { return }
         exit = info
         exitError = nil
         lastExitFetch = Date()
