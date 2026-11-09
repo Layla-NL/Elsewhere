@@ -167,7 +167,8 @@ final class AppModel: ObservableObject {
                         let b = found[i]
                         found[i] = PhoneDevice(id: b.id, name: b.name, model: phone.model, osVersion: b.osVersion,
                                                platform: b.platform, paired: b.paired, developerMode: b.developerMode,
-                                               stateText: b.stateText, tunnelConnected: b.tunnelConnected, engine: .builtIn)
+                                               stateText: b.stateText, tunnelConnected: b.tunnelConnected, engine: .builtIn,
+                                               connection: b.connection, wirelessEnabled: b.wirelessEnabled)
                     } else {
                         found.append(phone)
                     }
@@ -286,6 +287,27 @@ final class AppModel: ObservableObject {
             report(.failure, result.title, detail: result.detail, origin: .panel)
             await refreshDevices()
         }
+    }
+
+    // MARK: 无线连接
+
+    /// 插线时可以开启：之后在同一个 Wi-Fi 下拔线也能用。
+    var canEnableWireless: Bool {
+        guard case .ready(let phone) = status else { return false }
+        return phone.engine == .builtIn && !phone.isWireless && phone.wirelessEnabled == false
+    }
+
+    func enableWireless() async {
+        guard busy == nil, case .ready(let phone) = status else { return }
+        busy = "正在开启无线连接…"
+        let result = await HelperEngine.setWireless(device: phone, enabled: true)
+        busy = nil
+        if result.ok {
+            report(.success, "已开启无线连接", detail: "在同一 Wi-Fi 下，拔线后仍可使用。", origin: .panel)
+        } else {
+            report(.failure, result.title, detail: result.detail, origin: .panel)
+        }
+        await refreshDevices()
     }
 
     // MARK: 引擎

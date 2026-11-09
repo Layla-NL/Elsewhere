@@ -16,6 +16,12 @@ struct PhoneDevice: Identifiable, Equatable {
     let tunnelConnected: Bool
     /// 由哪个引擎控制这台设备。
     var engine: EngineKind = .xcode
+    /// 内置引擎下的连接方式："usb" 或 "network"。
+    var connection: String? = nil
+    /// 是否开启了无线连接（访达里的「连接 Wi-Fi 时显示此 iPhone」）；nil 表示不知道。
+    var wirelessEnabled: Bool? = nil
+
+    var isWireless: Bool { connection == "network" }
 
     var reachable: Bool {
         if tunnelConnected { return true }
@@ -33,6 +39,7 @@ struct PhoneDevice: Identifiable, Equatable {
         var parts: [String] = []
         if !model.isEmpty { parts.append(model) }
         if !osVersion.isEmpty { parts.append("\(platform.isEmpty ? "iOS" : platform) \(osVersion)") }
+        if isWireless { parts.append("无线") }
         return parts.joined(separator: " · ")
     }
 }

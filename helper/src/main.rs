@@ -132,6 +132,8 @@ struct DeviceInfo {
     paired: bool,
     /// None when the device would not say (for example, before trust).
     developer_mode: Option<bool>,
+    /// Finder's "Show this iPhone when on Wi-Fi"; None before trust.
+    wifi: Option<bool>,
     error: Option<String>,
 }
 
@@ -170,6 +172,7 @@ async fn list() -> Outcome {
             connection: if usb { "usb" } else { "network" },
             paired: false,
             developer_mode: None,
+            wifi: None,
             error: None,
         };
         if let Err(e) = describe(&provider, &mut info).await {
@@ -217,6 +220,15 @@ async fn describe(provider: &UsbmuxdProvider, info: &mut DeviceInfo) -> Result<(
         .await
         .ok()
         .and_then(|v| v.as_boolean());
+    // Missing means it was never turned on.
+    info.wifi = Some(
+        lockdown
+            .get_value(Some("EnableWifiConnections"), Some("com.apple.mobile.wireless_lockdown"))
+            .await
+            .ok()
+            .and_then(|v| v.as_boolean())
+            .unwrap_or(false),
+    );
     Ok(())
 }
 

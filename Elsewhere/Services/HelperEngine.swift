@@ -60,7 +60,9 @@ enum HelperEngine {
                                developerMode: d["developerMode"] as? Bool,
                                stateText: "connected",
                                tunnelConnected: true,
-                               engine: .builtIn)
+                               engine: .builtIn,
+                               connection: d["connection"] as? String,
+                               wirelessEnabled: d["wifi"] as? Bool)
         }
     }
 
@@ -81,6 +83,12 @@ enum HelperEngine {
             reply = await run(args, timeout: 120)
         }
         return result(of: reply, device: device, action: "修改定位")
+    }
+
+    /// 开启或关闭无线连接，和访达里的「连接 Wi-Fi 时显示此 iPhone」是同一个开关。
+    static func setWireless(device: PhoneDevice, enabled: Bool) async -> EngineResult {
+        result(of: await run(["wifi", device.id, enabled ? "on" : "off"], timeout: 30),
+               device: device, action: "更改无线连接")
     }
 
     static func clearLocation(device: PhoneDevice) async -> EngineResult {

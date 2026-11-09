@@ -89,6 +89,17 @@ private struct DeviceHeader: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
             }
+            if model.canEnableWireless {
+                Button {
+                    Task { await model.enableWireless() }
+                } label: {
+                    Label("允许无线连接", systemImage: "wifi")
+                }
+                .buttonStyle(.link)
+                .font(.caption)
+                .disabled(model.busy != nil)
+                .help("开启后，在同一 Wi-Fi 下拔线也能使用")
+            }
         }
     }
 }
