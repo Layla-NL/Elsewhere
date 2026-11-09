@@ -207,6 +207,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Elsewhere;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Elsewhere 通过局域网连接手机的代理共享，查询手机的代理出口。";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "MIT License";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -236,6 +237,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Elsewhere;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Elsewhere 通过局域网连接手机的代理共享，查询手机的代理出口。";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "MIT License";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
