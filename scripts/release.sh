@@ -39,18 +39,20 @@ echo "▸ Developer ID 签名并提交公证"
 xcodebuild -exportArchive -archivePath "$ARCHIVE" -exportOptionsPlist "$OPTIONS" \
   -exportPath "$EXPORT" -allowProvisioningUpdates
 
-echo "▸ 等待公证结果（通常几分钟）"
-for _ in $(seq 1 60); do
+echo "▸ 等待公证结果（通常几分钟，第一次可能要一小时以上）"
+for _ in $(seq 1 ${NOTARY_WAIT_MINUTES:-90}); do
   if xcodebuild -exportNotarizedApp -archivePath "$ARCHIVE" -exportPath "$EXPORT" >/dev/null 2>&1; then
     break
   fi
-  sleep 20
+  sleep 60
 done
 APP="$EXPORT/Elsewhere.app"
 [[ -d "$APP" ]] || { echo "公证还没完成或失败了，稍后再运行：xcodebuild -exportNotarizedApp -archivePath $ARCHIVE -exportPath $EXPORT"; exit 1; }
 
 echo "▸ 检查"
 codesign --verify --deep --strict "$APP"
+codesign -dv "$APP/Contents/Helpers/elsewhere-helper" 2>&1 | grep -E "Authority=Developer ID Application|flags=.*runtime" \
+  || { echo "内置组件没有用 Developer ID 和强化运行时签名"; exit 1; }
 spctl --assess --type execute -v "$APP"
 xcrun stapler validate "$APP"
 
