@@ -4,7 +4,7 @@
 
 > Elsewhere is a tiny macOS menu-bar app that changes a connected iPhone's or iPad's location — to your proxy's exit IP, a favorite city, or any spot on the map. It talks to the device itself through a built-in helper (based on [idevice](https://github.com/jkcoxson/idevice)), so Xcode is not required. No jailbreak, no profiles, nothing installed on the phone.
 
-- **跟随代理出口**：查当前出口 IP 的位置（走系统代理，和 Surge 等工具一致），一键把定位改过去
+- **跟随代理出口**：查当前出口 IP 的位置，一键把定位改过去。出口可以按这台 Mac 查（走系统代理，和 Surge 等工具一致），也可以按手机查（经手机代理 App 的「代理共享」）
 - **出口变化提醒 / 自动跟随**：在 Surge 里换了节点，自动发现并提醒，或者直接跟着改
 - **常用城市**：内置 11 个城市，可以增删、拖动排序
 - **地图窗口**：大地图上点一下就能选点，也可以搜地名或输入坐标；地图上同时标出 iPhone 当前位置和代理出口，选好后一键「应用到 iPhone」（⌘↩），也能直接恢复真实定位
@@ -12,6 +12,8 @@
 - **恢复真实定位**：一个按钮
 - **重启后自动改回**：设备重启会让模拟定位失效；重新连接时，Elsewhere 自动改回上次的位置（可在设置里关闭）
 - **时区检查**：设备时区和定位对不上时提醒你，并按设备给出改法
+- **快捷指令**：「跟随代理出口」「改到常用城市」「改到坐标」「恢复真实定位」可以在快捷指令里使用和组合
+- **多台设备**：可以一次修改所有连着的 iPhone 和 iPad
 - **不需要 Xcode**：内置连接组件，下载就能用；插线或无线都可以
 - **自动识别 iPhone 和 iPad**：插线自动识别，连不上时告诉你原因（没插线、没信任、没开开发者模式）
 - **全局快捷键** `⌃⌥⌘L`：随时跟随出口，结果用系统通知告诉你
@@ -106,6 +108,12 @@ iOS 的「自动设定时区」：没有蜂窝网络的设备（比如 Wi-Fi 版
 
 **搜索会把什么发出去？**
 你输入的搜索词会发给 Apple 地图和 OpenStreetMap（[Photon](https://photon.komoot.io) 和 [Nominatim](https://nominatim.openstreetmap.org)），用来查地点。除此之外不上传任何东西，也没有统计。
+
+**出口跟的是 Mac 还是手机？**
+默认按这台 Mac 的网络查。手机用的是另一个代理（比如 Mac 上 Surge、手机上小火箭）时，两边出口可能不同。这时在「设置 › 出口来源」选「手机」，并在手机的代理 App 里打开代理共享（各 App 叫法不同，比如「代理共享」「允许 Wi-Fi 访问」），把它显示的局域网地址和端口（如 `192.168.1.20:1082`）填进去。Elsewhere 会经这个代理查出口，查到的就是手机的出口。手机和 Mac 需要在同一个 Wi-Fi 上。
+
+**快捷指令怎么用？**
+打开「快捷指令」App，搜索 Elsewhere，就能看到四个动作，也可以直接用「用 Elsewhere 跟随代理出口」这类现成的短语。动作会作用于 Elsewhere 当前选中的设备（打开「同时修改所有设备」时是全部）。
 
 **「自动改」为什么没生效？**
 只有当前定位来自「跟随代理出口」时才会自动改，这样不会覆盖你手动选的城市。
