@@ -16,10 +16,16 @@ OPTIONS=build/ExportOptions.plist
 rm -rf "$ARCHIVE" "$EXPORT"
 mkdir -p build
 
+# 用登录钥匙串里的开发证书。钥匙串搜索列表里如果还有别的项目加的钥匙串（锁着的），
+# 只写「Apple Development」会被 Xcode 挑到那边的证书，签名报 errSecInternalComponent。
+LOGIN_KEYCHAIN="$HOME/Library/Keychains/login.keychain-db"
+IDENTITY=$(security find-identity -v -p codesigning "$LOGIN_KEYCHAIN" | awk '/Apple Development/ {print $2; exit}')
+IDENTITY="${IDENTITY:-Apple Development}"
+
 echo "▸ 归档"
 xcodebuild archive -project Elsewhere.xcodeproj -scheme Elsewhere -configuration Release \
   -destination 'generic/platform=macOS' -archivePath "$ARCHIVE" -derivedDataPath build \
-  DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic CODE_SIGN_IDENTITY="Apple Development" \
+  DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="$IDENTITY" PROVISIONING_PROFILE_SPECIFIER= \
   ENABLE_HARDENED_RUNTIME=YES -allowProvisioningUpdates -quiet
 
 cat > "$OPTIONS" <<EOF
