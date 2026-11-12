@@ -2,6 +2,7 @@ import SwiftUI
 
 struct PanelView: View {
     @EnvironmentObject private var model: AppModel
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         Group {
@@ -11,7 +12,9 @@ struct PanelView: View {
             case .settings: SettingsView()
             }
         }
-        .frame(width: 340)
+        .frame(width: 360)
+        // 底下是 Nebulium 登录页那层会动的字符场，点空白处会荡开波纹。完整功能在主窗口里，这里只放快捷操作。
+        .background { CodeField(dark: scheme == .dark, animated: true, strength: 0.45) }
         .onAppear { model.panelDidOpen() }
         .onDisappear { model.panelDidClose() }
     }
@@ -31,9 +34,9 @@ private struct MainPage: View {
 
             HStack(spacing: 8) {
                 Button {
-                    MapWindow.show(model: model)
+                    MainWindow.show(model: model)
                 } label: {
-                    Label("打开地图", systemImage: "map")
+                    Label("打开 Elsewhere", systemImage: "macwindow")
                         .frame(maxWidth: .infinity)
                 }
                 Button {
@@ -53,11 +56,11 @@ private struct MainPage: View {
             Divider()
             FooterBar()
         }
-        .padding(14)
+        .padding(16)
     }
 }
 
-private struct DeviceHeader: View {
+struct DeviceHeader: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
@@ -110,7 +113,7 @@ private struct DeviceHeader: View {
     }
 }
 
-private struct DevicePicker: View {
+struct DevicePicker: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
@@ -138,7 +141,7 @@ private struct DevicePicker: View {
     }
 }
 
-private struct CurrentLocationCard: View {
+struct CurrentLocationCard: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
@@ -190,7 +193,7 @@ private struct CurrentLocationCard: View {
     }
 }
 
-private struct FollowExitSection: View {
+struct FollowExitSection: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
@@ -268,16 +271,26 @@ private struct FollowExitSection: View {
     }
 }
 
-private struct CitiesSection: View {
+struct CitiesSection: View {
     @EnvironmentObject private var model: AppModel
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 3)
+    var columnCount = 3
+    /// 菜单栏面板里点「编辑」打开主窗口的常用城市；主窗口里直接切过去。
+    var onEdit: (() -> Void)? = nil
+    private var columns: [GridItem] { Array(repeating: GridItem(.flexible(), spacing: 6), count: columnCount) }
+
+    init(columns: Int = 3, onEdit: (() -> Void)? = nil) {
+        columnCount = columns
+        self.onEdit = onEdit
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 SectionTitle(title: "常用城市")
                 Spacer()
-                Button("编辑") { model.page = .cities }
+                Button("编辑") {
+                    if let onEdit { onEdit() } else { MainWindow.show(model: model, section: .cities) }
+                }
                     .buttonStyle(.link)
                     .font(.caption)
             }
@@ -286,22 +299,27 @@ private struct CitiesSection: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
-                ScrollView {
-                    LazyVGrid(columns: columns, spacing: 6) {
-                        ForEach(model.cities) { city in
-                            CityButton(city: city)
-                        }
+                let grid = LazyVGrid(columns: columns, spacing: 6) {
+                    ForEach(model.cities) { city in
+                        CityButton(city: city)
                     }
                 }
-                .scrollIndicators(.never)
-                .frame(maxHeight: 156)
-                .fixedSize(horizontal: false, vertical: model.cities.count <= 15)
+                if onEdit != nil {
+                    // 主窗口：全部摊开
+                    grid
+                } else {
+                    // 菜单栏面板：最多露出三行，多的滚动
+                    let rows = (model.cities.count + columnCount - 1) / columnCount
+                    ScrollView { grid }
+                        .scrollIndicators(.never)
+                        .frame(height: CGFloat(min(rows, 3)) * 30 - 6)
+                }
             }
         }
     }
 }
 
-private struct CityButton: View {
+struct CityButton: View {
     @EnvironmentObject private var model: AppModel
     let city: Place
 
@@ -333,7 +351,7 @@ private struct FooterBar: View {
     var body: some View {
         HStack {
             Button {
-                model.page = .settings
+                MainWindow.show(model: model, section: .settings)
             } label: {
                 Label("设置", systemImage: "gearshape")
             }

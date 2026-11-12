@@ -7,7 +7,8 @@
 - **跟随代理出口**：查当前出口 IP 的位置，一键把定位改过去。出口可以按这台 Mac 查（走系统代理，和 Surge 等工具一致），也可以按手机查（经手机代理 App 的「代理共享」）
 - **出口变化提醒 / 自动跟随**：在 Surge 里换了节点，自动发现并提醒，或者直接跟着改
 - **常用城市**：内置 11 个城市，可以增删、拖动排序
-- **地图窗口**：大地图上点一下就能选点，也可以搜地名或输入坐标；地图上同时标出 iPhone 当前位置和代理出口，选好后一键「应用到 iPhone」（⌘↩），也能直接恢复真实定位
+- **主窗口**：侧边栏分「定位、地图、常用城市、设备、设置」，背景是会动的字符场；菜单栏面板只放常用操作，点「打开 Elsewhere」进入主窗口
+- **地图**：大地图上点一下就能选点，也可以搜地名或输入坐标；地图上同时标出 iPhone 当前位置和代理出口，选好后一键「应用到 iPhone」（⌘↩），也能直接恢复真实定位
 - **海外地名也搜得到**：国区 Mac 的 Apple 地图用的是高德数据，海外地名基本搜不出来。Elsewhere 同时用 OpenStreetMap 搜索：边输入边联想，回车精确搜索，「东京塔」「埃菲尔铁塔」这样的中文名也能找到
 - **恢复真实定位**：一个按钮
 - **重启后自动改回**：设备重启会让模拟定位失效；重新连接时，Elsewhere 自动改回上次的位置（可在设置里关闭）
@@ -150,13 +151,17 @@ Elsewhere/
 │   ├── Notifier.swift          系统通知
 │   └── Shell.swift             Process 封装
 └── Views/
-    ├── PanelView.swift         菜单栏面板
-    ├── MapWindow.swift         地图窗口
+    ├── PanelView.swift         菜单栏面板（快捷操作）
+    ├── MainWindow.swift        主窗口：侧边栏和各栏目
+    ├── MapWindow.swift         地图
+    ├── CodeField.swift         会动的字符场背景
     ├── PlaceSearch.swift       Apple 地图 + OpenStreetMap 地名搜索
+    ├── Splash.swift            第一次打开时盖在主窗口上的开场页
+    ├── WordmarkGlyphs.swift    ELSEWHERE 字标的字形
     └── ...                     常用城市、设置等
 ```
 
-开发小技巧：`open Elsewhere.app --args -showPanelWindow YES` 会把面板放在普通窗口里显示，方便截图和调试。可以再加 `-panelPage cities`（或 `settings`）直接打开对应页面，`-panelPage map` 会打开地图窗口。
+开发小技巧：`open Elsewhere.app --args -showPanelWindow YES` 会把面板放在普通窗口里显示，方便截图和调试。可以再加 `-panelPage cities`（或 `settings`）直接打开对应页面，`-showMainWindow location`（或 `map`、`cities`、`device`、`settings`）直接打开主窗口的对应栏目，`-panelAppearance dark` 用深色显示。`-showSplash YES` 每次都显示开场页，`-splashAppearance dark` 用深色显示，`-splashDemo YES` 在开场页上自动点一下、拖一段（截图看波纹用），`-alwaysAnimate YES` 窗口不在前台时字符场也接着动。
 
 ## 免责声明
 
@@ -165,3 +170,5 @@ Elsewhere/
 ## License
 
 [MIT](LICENSE)
+
+ELSEWHERE 字标的字形取自 [Jost](https://github.com/indestructible-type/Jost)（Light），按 [SIL Open Font License 1.1](Licenses/Jost-OFL.txt) 使用。

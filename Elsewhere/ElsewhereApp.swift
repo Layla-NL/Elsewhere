@@ -11,7 +11,10 @@ struct ElsewhereApp: App {
                 .environmentObject(model)
         } label: {
             Image(systemName: model.applied == nil ? "location" : "location.fill")
-                .task { PanelWindow.showIfRequested(model: model) }
+                .task {
+                    PanelWindow.showIfRequested(model: model)
+                    Splash.showIfNeeded()
+                }
         }
         .menuBarExtraStyle(.window)
     }
@@ -23,6 +26,10 @@ enum PanelWindow {
     private static var window: NSWindow?
 
     static func showIfRequested(model: AppModel) {
+        // `-showMainWindow location|map|cities|device|settings` 直接打开主窗口的某一栏
+        if let raw = UserDefaults.standard.string(forKey: "showMainWindow") {
+            MainWindow.show(model: model, section: MainSection(rawValue: raw) ?? .location)
+        }
         guard window == nil, UserDefaults.standard.bool(forKey: "showPanelWindow") else { return }
         switch UserDefaults.standard.string(forKey: "panelPage") {
         case "cities": model.page = .cities
@@ -34,6 +41,9 @@ enum PanelWindow {
         let w = NSWindow(contentViewController: hosting)
         w.title = "Elsewhere"
         w.styleMask = [.titled, .closable]
+        if let look = UserDefaults.standard.string(forKey: "panelAppearance") {
+            w.appearance = NSAppearance(named: look == "dark" ? .darkAqua : .aqua)
+        }
         w.isReleasedWhenClosed = false
         w.center()
         w.makeKeyAndOrderFront(nil)

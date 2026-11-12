@@ -2,27 +2,11 @@ import AppKit
 import MapKit
 import SwiftUI
 
-/// 独立的地图窗口。菜单栏 App 没有主窗口，所以自己管一个 NSWindow。
+/// 地图现在是主窗口里的一个栏目，保留这个入口给其他地方调用。
 @MainActor
 enum MapWindow {
-    private static var window: NSWindow?
-
     static func show(model: AppModel) {
-        if window == nil {
-            let hosting = NSHostingController(rootView: MapWindowView().environmentObject(model))
-            let w = NSWindow(contentViewController: hosting)
-            w.title = "Elsewhere 地图"
-            w.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
-            w.titlebarAppearsTransparent = true
-            w.isReleasedWhenClosed = false
-            w.setContentSize(NSSize(width: 960, height: 640))
-            w.contentMinSize = NSSize(width: 720, height: 500)
-            w.setFrameAutosaveName("ElsewhereMap")
-            if w.frame.origin == .zero { w.center() }
-            window = w
-        }
-        NSApp.activate(ignoringOtherApps: true)
-        window?.makeKeyAndOrderFront(nil)
+        MainWindow.show(model: model, section: .map)
     }
 }
 

@@ -106,7 +106,7 @@ struct SettingsView: View {
                 .foregroundStyle(.tertiary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(14)
+        .padding(18)
         .onAppear { model.refreshLaunchAtLogin() }
     }
 }

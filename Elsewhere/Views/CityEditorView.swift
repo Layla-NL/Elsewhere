@@ -84,7 +84,7 @@ struct CityEditorView: View {
                     }
             }
         }
-        .padding(14)
+        .padding(18)
     }
 
     private func add() {

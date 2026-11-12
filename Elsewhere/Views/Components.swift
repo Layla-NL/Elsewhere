@@ -1,14 +1,16 @@
 import AppKit
 import SwiftUI
 
-/// 浅色卡片背景，深浅色模式下都自然。
+/// 卡片背景：一层磨砂，盖住底下会动的字符场，文字始终清楚。
 struct CardBackground: ViewModifier {
     var padding: CGFloat = 12
     func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
         content
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .background(.regularMaterial, in: shape)
+            .overlay(shape.strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5))
     }
 }
 
@@ -19,9 +21,14 @@ extension View {
 /// 子页面顶部：返回 + 标题。
 struct PageHeader: View {
     @EnvironmentObject private var model: AppModel
+    @Environment(\.inMainWindow) private var inMainWindow
     let title: String
 
     var body: some View {
+        if !inMainWindow { header }
+    }
+
+    private var header: some View {
         HStack(spacing: 6) {
             Button {
                 model.page = .main
