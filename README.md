@@ -161,7 +161,7 @@ Elsewhere/
     └── ...                     常用城市、设置等
 ```
 
-开发小技巧：`open Elsewhere.app --args -showPanelWindow YES` 会把面板放在普通窗口里显示，方便截图和调试。可以再加 `-panelPage cities`（或 `settings`）直接打开对应页面，`-showMainWindow location`（或 `map`、`cities`、`device`、`settings`）直接打开主窗口的对应栏目，`-panelAppearance dark` 用深色显示。`-showSplash YES` 每次都显示开场页，`-splashAppearance dark` 用深色显示，`-splashDemo YES` 在开场页上自动点一下、拖一段（截图看波纹用），`-alwaysAnimate YES` 窗口不在前台时字符场也接着动。
+开发小技巧：`open Elsewhere.app --args -showPanelWindow YES` 会把面板放在普通窗口里显示，方便截图和调试。可以再加 `-panelPage cities`（或 `settings`）直接打开对应页面，`-showMainWindow location`（或 `map`、`cities`、`device`、`settings`）直接打开主窗口的对应栏目，`-panelAppearance dark` 用深色显示。`-showSplash YES` 每次都显示开场页，`-splashAppearance dark` 用深色显示，`-splashDemo YES` 在开场页上自动点一下、拖一段（截图看波纹用），`-alwaysAnimate YES` 窗口不在前台时字符场也接着动。调试版还可以加 `-demo YES`：换成一台假的 iPhone 和假的出口（文档用 IP），不碰真设备、不保存设置，用来截宣传图。
 
 ## 免责声明
 

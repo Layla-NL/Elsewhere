@@ -30,6 +30,13 @@ final class AppModel: ObservableObject {
     static let devicePollInterval: Duration = .seconds(4)
     static let exitPollInterval: Duration = .seconds(30)
 
+    #if DEBUG
+    /// 截图、录屏用：`-demo YES` 换成一台假的 iPhone 和假的出口（文档用 IP），不碰真设备，也不保存任何设置。
+    static let demo = UserDefaults.standard.bool(forKey: "demo")
+    #else
+    static let demo = false
+    #endif
+
     // MARK: 状态
 
     @Published var page: Page = .main
@@ -37,7 +44,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var phones: [PhoneDevice] = []
     @Published var selectedPhoneID: String? {
         didSet {
-            defaults.set(selectedPhoneID, forKey: Key.selectedPhone)
+            if !Self.demo { defaults.set(selectedPhoneID, forKey: Key.selectedPhone) }
             recomputeStatus()
         }
     }
@@ -179,7 +186,19 @@ final class AppModel: ObservableObject {
         phoneProxy = UserDefaults.standard.string(forKey: Key.phoneProxy) ?? ""
         updateAppliedTimeZone()
         refreshLaunchAtLogin()
-        start()
+        if Self.demo { startDemo() } else { start() }
+    }
+
+    private func startDemo() {
+        let phone = PhoneDevice(id: "demo", name: "iPhone", model: "iPhone 17 Pro", osVersion: "27.0", platform: "iOS",
+                                paired: true, developerMode: true, stateText: "available (paired)", tunnelConnected: true,
+                                engine: .builtIn, connection: "usb", wirelessEnabled: true)
+        phones = [phone]
+        status = .ready(phone)
+        applied = nil
+        exit = ExitInfo(ip: "203.0.113.24", city: "Tokyo", region: "Tokyo", country: "JP",
+                        latitude: 35.6895, longitude: 139.6917)
+        lastExitFetch = Date()
     }
 
     private func start() {
@@ -215,6 +234,7 @@ final class AppModel: ObservableObject {
     // MARK: 设备
 
     func refreshDevices() async {
+        guard !Self.demo else { return }
         let useBuiltIn = engineMode != .xcode && HelperEngine.isAvailable
         let useXcode = engineMode != .builtIn
         if useXcode && !toolsChecked {
@@ -401,6 +421,8 @@ final class AppModel: ObservableObject {
         let info: ExitInfo
         if let prefetched {
             info = prefetched
+        } else if Self.demo, let demoExit = exit {
+            info = demoExit
         } else {
             busy = "正在查询代理出口…"
             do {
@@ -513,6 +535,10 @@ final class AppModel: ObservableObject {
     }
 
     private func setLocation(on phone: PhoneDevice, latitude: Double, longitude: Double) async -> EngineResult {
+        if Self.demo {
+            try? await Task.sleep(for: .milliseconds(700))
+            return EngineResult(ok: true, title: "", detail: nil)
+        }
         if phone.engine == .builtIn {
             let result = await HelperEngine.setLocation(device: phone, latitude: latitude, longitude: longitude) {
                 self.busy = "正在下载开发者组件…"
@@ -524,6 +550,10 @@ final class AppModel: ObservableObject {
     }
 
     private func clearLocation(on phone: PhoneDevice) async -> EngineResult {
+        if Self.demo {
+            try? await Task.sleep(for: .milliseconds(500))
+            return EngineResult(ok: true, title: "", detail: nil)
+        }
         if phone.engine == .builtIn {
             let result = await HelperEngine.clearLocation(device: phone)
             guard !result.ok, canFallBack(phone, after: result) else { return result }
@@ -535,6 +565,7 @@ final class AppModel: ObservableObject {
     // MARK: 出口 IP
 
     func refreshExit() async {
+        guard !Self.demo else { return }
         guard !phoneProxyInvalid else {
             exitError = "手机代理地址无效"
             return
@@ -659,6 +690,7 @@ final class AppModel: ObservableObject {
     // MARK: 存取
 
     private func save<T: Encodable>(_ value: T?, _ key: String) {
+        guard !Self.demo else { return }
         if let value, let data = try? JSONEncoder().encode(value) {
             defaults.set(data, forKey: key)
         } else {
