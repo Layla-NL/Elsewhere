@@ -29,7 +29,7 @@ private struct MainPage: View {
         VStack(alignment: .leading, spacing: 12) {
             DeviceHeader()
             CurrentLocationCard()
-            FollowExitSection()
+            if model.exitFeatures { FollowExitSection() }
             CitiesSection()
 
             HStack(spacing: 8) {
@@ -357,7 +357,7 @@ private struct FooterBar: View {
             }
             .buttonStyle(.plain)
             Spacer()
-            if model.hotKeyEnabled {
+            if model.hotKeyEnabled && model.exitFeatures {
                 Text("\(HotKey.displayString) 跟随出口")
                     .foregroundStyle(.tertiary)
             }

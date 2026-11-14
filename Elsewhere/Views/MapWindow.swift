@@ -229,15 +229,17 @@ struct MapWindowView: View {
                 deviceState
             }
             HStack(spacing: 8) {
-                Button {
-                    Task {
-                        await model.followExit()
-                        if let exit = model.exit { jump(to: map(exit.latitude, exit.longitude)) }
+                if model.exitFeatures {
+                    Button {
+                        Task {
+                            await model.followExit()
+                            if let exit = model.exit { jump(to: map(exit.latitude, exit.longitude)) }
+                        }
+                    } label: {
+                        Label("跟随出口", systemImage: "globe")
                     }
-                } label: {
-                    Label("跟随出口", systemImage: "globe")
+                    .disabled(!model.canOperate)
                 }
-                .disabled(!model.canOperate)
 
                 Button {
                     guard let gps = gpsPin else { return }

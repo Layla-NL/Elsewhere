@@ -23,6 +23,7 @@ final class AppModel: ObservableObject {
         static let wirelessDevices = "wirelessDevices"
         static let autoRestore = "autoRestore"
         static let exitFromPhone = "exitFromPhone"
+        static let exitFeatures = "exitFeatures"
         static let phoneProxy = "phoneProxy"
         static let applyToAll = "applyToAll"
     }
@@ -109,6 +110,22 @@ final class AppModel: ObservableObject {
     }
 
     /// 出口来源：false 为本机，true 为手机（经手机代理 App 共享的代理查询）。
+    /// 代理出口相关的功能（跟随出口、出口提醒、快捷键）。关掉后不再查询出口 IP，界面上也不显示，只用来改定位。
+    @Published var exitFeatures: Bool {
+        didSet {
+            guard exitFeatures != oldValue else { return }
+            if !Self.demo { defaults.set(exitFeatures, forKey: Key.exitFeatures) }
+            if exitFeatures {
+                Task { await refreshExit() }
+            } else {
+                exit = nil
+                exitError = nil
+                pendingExitChange = nil
+            }
+            applyHotKey()
+        }
+    }
+
     @Published var exitFromPhone: Bool {
         didSet {
             defaults.set(exitFromPhone, forKey: Key.exitFromPhone)
@@ -182,6 +199,7 @@ final class AppModel: ObservableObject {
         wirelessDevices = UserDefaults.standard.dictionary(forKey: Key.wirelessDevices) as? [String: String] ?? [:]
         autoRestore = UserDefaults.standard.object(forKey: Key.autoRestore) as? Bool ?? true
         exitFromPhone = UserDefaults.standard.bool(forKey: Key.exitFromPhone)
+        exitFeatures = UserDefaults.standard.object(forKey: Key.exitFeatures) == nil ? true : UserDefaults.standard.bool(forKey: Key.exitFeatures)
         applyToAll = UserDefaults.standard.bool(forKey: Key.applyToAll)
         phoneProxy = UserDefaults.standard.string(forKey: Key.phoneProxy) ?? ""
         updateAppliedTimeZone()
@@ -196,8 +214,10 @@ final class AppModel: ObservableObject {
         phones = [phone]
         status = .ready(phone)
         applied = nil
-        exit = ExitInfo(ip: "203.0.113.24", city: "Tokyo", region: "Tokyo", country: "JP",
-                        latitude: 35.6895, longitude: 139.6917)
+        if exitFeatures {
+            exit = ExitInfo(ip: "203.0.113.24", city: "Tokyo", region: "Tokyo", country: "JP",
+                            latitude: 35.6895, longitude: 139.6917)
+        }
         lastExitFetch = Date()
     }
 
@@ -565,6 +585,7 @@ final class AppModel: ObservableObject {
     // MARK: 出口 IP
 
     func refreshExit() async {
+        guard exitFeatures else { return }
         guard !Self.demo else { return }
         guard !phoneProxyInvalid else {
             exitError = "手机代理地址无效"
@@ -595,6 +616,7 @@ final class AppModel: ObservableObject {
     }
 
     private func checkExitChange() async {
+        guard exitFeatures else { return }
         guard !phoneProxyInvalid else { return }
         guard let ip = try? await ExitIPService.currentIP(proxy: exitProxy) else { return }
         guard let previous = lastSeenIP else {
@@ -644,7 +666,7 @@ final class AppModel: ObservableObject {
     // MARK: 设置
 
     private func applyHotKey() {
-        if hotKeyEnabled { HotKey.shared.register() } else { HotKey.shared.unregister() }
+        if hotKeyEnabled && exitFeatures { HotKey.shared.register() } else { HotKey.shared.unregister() }
     }
 
     func setLaunchAtLogin(_ enabled: Bool) {

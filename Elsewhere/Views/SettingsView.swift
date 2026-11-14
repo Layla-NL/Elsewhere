@@ -12,6 +12,15 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             PageHeader(title: "设置")
 
+            VStack(alignment: .leading, spacing: 10) {
+                SettingRow(title: "代理出口功能",
+                           detail: "跟随代理出口、出口变化提醒和快捷键。关掉后不再查询出口 IP，界面上也不显示，只用来改定位。",
+                           isOn: $model.exitFeatures)
+            }
+            .toggleStyle(.switch)
+            .card()
+
+            if model.exitFeatures {
             VStack(alignment: .leading, spacing: 8) {
                 SectionTitle(title: "代理出口变化时")
                 Picker("代理出口变化时", selection: $model.watchMode) {
@@ -28,6 +37,7 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .card()
+            }
 
             VStack(alignment: .leading, spacing: 10) {
                 SettingRow(title: "开机自动启动", detail: nil,
@@ -48,14 +58,17 @@ struct SettingsView: View {
                 SettingRow(title: "重新连接后恢复定位",
                            detail: "设备重新启动后，再次连接时自动改回上次的位置。",
                            isOn: $model.autoRestore)
-                Divider()
-                SettingRow(title: "全局快捷键 \(HotKey.displayString)",
-                           detail: "随时按下就跟随代理出口改定位，结果用系统通知告诉你。",
-                           isOn: $model.hotKeyEnabled)
+                if model.exitFeatures {
+                    Divider()
+                    SettingRow(title: "全局快捷键 \(HotKey.displayString)",
+                               detail: "随时按下就跟随代理出口改定位，结果用系统通知告诉你。",
+                               isOn: $model.hotKeyEnabled)
+                }
             }
             .toggleStyle(.switch)
             .card()
 
+            if model.exitFeatures {
             VStack(alignment: .leading, spacing: 8) {
                 SectionTitle(title: "出口来源")
                 Picker("出口来源", selection: $model.exitFromPhone) {
@@ -82,6 +95,7 @@ struct SettingsView: View {
                 }
             }
             .card()
+            }
 
             VStack(alignment: .leading, spacing: 8) {
                 SectionTitle(title: "定位方式")

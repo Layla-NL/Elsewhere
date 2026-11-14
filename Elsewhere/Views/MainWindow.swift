@@ -158,7 +158,7 @@ private struct LocationPage: View {
         VStack(alignment: .leading, spacing: 18) {
             DeviceHeader().card(padding: 14)
             CurrentLocationCard()
-            FollowExitSection()
+            if model.exitFeatures { FollowExitSection() }
             CitiesSection(columns: 4, onEdit: { state.section = .cities })
             HStack(spacing: 10) {
                 Button {
