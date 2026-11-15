@@ -106,7 +106,7 @@ final class AppModel: ObservableObject {
 
     /// 同时修改所有已连接、已就绪的设备。
     @Published var applyToAll: Bool {
-        didSet { defaults.set(applyToAll, forKey: Key.applyToAll) }
+        didSet { if !Self.demo { defaults.set(applyToAll, forKey: Key.applyToAll) } }
     }
 
     /// 出口来源：false 为本机，true 为手机（经手机代理 App 共享的代理查询）。
@@ -214,6 +214,19 @@ final class AppModel: ObservableObject {
         phones = [phone]
         status = .ready(phone)
         applied = nil
+        // `-demoCities cn` 换成国内城市，录国内宣传视频用
+        if UserDefaults.standard.string(forKey: "demoCities") == "cn" {
+            cities = [
+                Place(name: "上海", latitude: 31.2304, longitude: 121.4737),
+                Place(name: "北京", latitude: 39.9042, longitude: 116.4074),
+                Place(name: "成都", latitude: 30.5728, longitude: 104.0668),
+                Place(name: "杭州", latitude: 30.2741, longitude: 120.1551),
+                Place(name: "深圳", latitude: 22.5431, longitude: 114.0579),
+                Place(name: "广州", latitude: 23.1291, longitude: 113.2644),
+                Place(name: "西安", latitude: 34.3416, longitude: 108.9398),
+                Place(name: "重庆", latitude: 29.5630, longitude: 106.5516),
+            ]
+        }
         if exitFeatures {
             exit = ExitInfo(ip: "203.0.113.24", city: "Tokyo", region: "Tokyo", country: "JP",
                             latitude: 35.6895, longitude: 139.6917)
