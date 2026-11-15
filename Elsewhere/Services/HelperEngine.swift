@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 /// 内置引擎：App 自带的 `elsewhere-helper`（基于开源的 idevice），不需要 Xcode。
@@ -74,11 +75,13 @@ enum HelperEngine {
     static func setLocation(device: PhoneDevice, latitude: Double, longitude: Double,
                             onDownload: @MainActor () -> Void) async -> EngineResult {
         let args = ["set", device.id, format(latitude), format(longitude), "--ddi", DeveloperDiskImage.directory.path]
+        // 旧版本下载过一套不配套的文件，留着会一直挂载失败
+        await Task.detached { DeveloperDiskImage.discardIfInvalid() }.value
         var reply = await run(args, timeout: 120)
         if !reply.ok, reply.code == "ddi_missing" {
             await onDownload()
             do {
-                try await DeveloperDiskImage.download()
+                try await DeveloperDiskImage.prepare()
             } catch {
                 return EngineResult(ok: false, title: "无法下载开发者组件", detail: error.localizedDescription)
             }
@@ -106,7 +109,7 @@ enum HelperEngine {
         case "not_paired": title = "请在 \(kind) 上信任这台 Mac"
         case "not_found": title = "\(kind) 未连接"
         case "ddi_missing": title = "缺少开发者组件"
-        case "ddi_mount": title = "无法准备开发者组件"
+        case "ddi_mount": title = "无法准备开发者组件，请保持 \(kind) 解锁，用数据线连接后再试"
         case "no_service": title = "\(kind) 暂时无法\(action)"
         default: title = "无法\(action)"
         }
@@ -128,37 +131,93 @@ struct EngineResult {
     var code: String? = nil
 }
 
-/// 开发者组件，也就是 iOS 的开发者磁盘映像。设备上没有时才需要，第一次用到时下载并缓存。
-/// 文件来自 Apple 官方映像的镜像；设备只会挂载 Apple 签过名的映像，签名是挂载时向 Apple 在线申请的。
+/// 开发者组件，也就是 iOS 的开发者磁盘映像（个性化版本）。设备上没有时才需要，第一次用到时准备好并缓存。
+/// Mac 上装过 Xcode 或系统自带了 iOS 开发者组件时直接用本机的，否则从镜像下载 Apple 官方映像。
+/// 设备只会挂载 Apple 签过名的映像，签名是挂载时向 Apple 在线申请的。
 enum DeveloperDiskImage {
     static let files = ["BuildManifest.plist", "Image.dmg", "Image.dmg.trustcache"]
-    static let mirror = URL(string: "https://raw.githubusercontent.com/swipt-automation/DeveloperDiskImage/main/")!
+    /// pymobiledevice3 用的同一个镜像，跟着 Xcode 更新。
+    static let mirror = URL(string: "https://raw.githubusercontent.com/doronz88/DeveloperDiskImage/main/PersonalizedImages/Xcode_iOS_DDI_Personalized/")!
+    /// Xcode / CoreDevice 放在本机的 iOS 开发者组件。
+    static let localRestore = URL(fileURLWithPath: "/Library/Developer/DeveloperDiskImages/iOS_DDI/Restore", isDirectory: true)
 
     static var directory: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         return base.appendingPathComponent("Elsewhere/DeveloperDiskImage", isDirectory: true)
     }
 
-    static var isDownloaded: Bool {
-        files.allSatisfy { FileManager.default.fileExists(atPath: directory.appendingPathComponent($0).path) }
+    enum Problem: LocalizedError {
+        case mismatch
+        var errorDescription: String? { "下载到的开发者组件和清单不配套（Image.dmg 的摘要不在 BuildManifest.plist 里）" }
     }
 
-    /// 先下载到临时目录，全部成功后再替换，避免留下半套文件。
-    static func download() async throws {
+    /// 三个文件齐全，且 Image.dmg 正是清单里某个设备要的个性化映像。
+    static func isValid(_ dir: URL) -> Bool {
+        let fm = FileManager.default
+        guard files.allSatisfy({ fm.fileExists(atPath: dir.appendingPathComponent($0).path) }),
+              let manifest = try? Data(contentsOf: dir.appendingPathComponent("BuildManifest.plist")),
+              let image = try? Data(contentsOf: dir.appendingPathComponent("Image.dmg"), options: .mappedIfSafe)
+        else { return false }
+        return personalizedDigests(manifest).contains(Data(SHA384.hash(data: image)))
+    }
+
+    /// 缓存的文件不配套就删掉，下次需要时重新准备。
+    static func discardIfInvalid() {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: directory.path), !isValid(directory) else { return }
+        try? fm.removeItem(at: directory)
+    }
+
+    /// 先放到临时目录，校验通过后再替换，避免留下半套或不配套的文件。
+    static func prepare() async throws {
         let fm = FileManager.default
         let staging = fm.temporaryDirectory.appendingPathComponent("elsewhere-ddi-\(UUID().uuidString)", isDirectory: true)
         try fm.createDirectory(at: staging, withIntermediateDirectories: true)
         defer { try? fm.removeItem(at: staging) }
 
-        for name in files {
-            var request = URLRequest(url: mirror.appendingPathComponent(name), timeoutInterval: 120)
-            request.setValue("Elsewhere", forHTTPHeaderField: "User-Agent")
-            let (temp, response) = try await URLSession.shared.download(for: request)
-            guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
-            try fm.moveItem(at: temp, to: staging.appendingPathComponent(name))
+        if !copyLocal(to: staging) {
+            for name in files { try? fm.removeItem(at: staging.appendingPathComponent(name)) }
+            for name in files {
+                var request = URLRequest(url: mirror.appendingPathComponent(name), timeoutInterval: 120)
+                request.setValue("Elsewhere", forHTTPHeaderField: "User-Agent")
+                let (temp, response) = try await URLSession.shared.download(for: request)
+                guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
+                try fm.moveItem(at: temp, to: staging.appendingPathComponent(name))
+            }
+            guard isValid(staging) else { throw Problem.mismatch }
         }
         try fm.createDirectory(at: directory.deletingLastPathComponent(), withIntermediateDirectories: true)
         if fm.fileExists(atPath: directory.path) { try fm.removeItem(at: directory) }
         try fm.moveItem(at: staging, to: directory)
+    }
+
+    /// 按本机清单找到个性化映像和它的 trust cache，复制成统一的文件名。
+    private static func copyLocal(to staging: URL) -> Bool {
+        let fm = FileManager.default
+        let manifestURL = localRestore.appendingPathComponent("BuildManifest.plist")
+        guard let data = try? Data(contentsOf: manifestURL),
+              let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
+              let identities = plist["BuildIdentities"] as? [[String: Any]],
+              let manifest = identities.lazy.compactMap({ $0["Manifest"] as? [String: Any] })
+                  .first(where: { $0["PersonalizedDMG"] != nil }),
+              let dmg = ((manifest["PersonalizedDMG"] as? [String: Any])?["Info"] as? [String: Any])?["Path"] as? String,
+              let trust = ((manifest["LoadableTrustCache"] as? [String: Any])?["Info"] as? [String: Any])?["Path"] as? String
+        else { return false }
+        do {
+            try fm.copyItem(at: manifestURL, to: staging.appendingPathComponent("BuildManifest.plist"))
+            try fm.copyItem(at: localRestore.appendingPathComponent(dmg), to: staging.appendingPathComponent("Image.dmg"))
+            try fm.copyItem(at: localRestore.appendingPathComponent(trust), to: staging.appendingPathComponent("Image.dmg.trustcache"))
+        } catch { return false }
+        return isValid(staging)
+    }
+
+    /// 清单里所有个性化映像的 SHA-384 摘要。
+    private static func personalizedDigests(_ manifest: Data) -> Set<Data> {
+        guard let plist = try? PropertyListSerialization.propertyList(from: manifest, format: nil) as? [String: Any],
+              let identities = plist["BuildIdentities"] as? [[String: Any]]
+        else { return [] }
+        return Set(identities.compactMap {
+            (($0["Manifest"] as? [String: Any])?["PersonalizedDMG"] as? [String: Any])?["Digest"] as? Data
+        })
     }
 }

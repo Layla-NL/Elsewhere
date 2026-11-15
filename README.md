@@ -42,7 +42,7 @@ Elsewhere 有两种方式，在「设置 › 定位方式」里选，默认「�
 
 还需要在设备的「设置 › 无线局域网」里，点当前网络旁的 ⓘ，把「私有无线局域网地址」设为「关闭」。macOS 靠设备的 Wi-Fi 地址认出它，私有地址和配对时记下的地址不同，Mac 会认不出这台设备。
 
-**开发者组件**：iOS 17 起，改定位前设备上要挂载 Apple 的开发者磁盘映像。装了 Xcode 的话它通常会自动挂好；没装的话，Elsewhere 第一次用到时会下载（约 18 MB，来自 [Apple 官方映像的镜像](https://github.com/swipt-automation/DeveloperDiskImage)），缓存在 `~/Library/Application Support/Elsewhere`。挂载时向 Apple 在线申请这台设备专属的签名，设备只接受 Apple 签过名的映像。
+**开发者组件**：iOS 17 起，改定位前设备上要挂载 Apple 的开发者磁盘映像。装了 Xcode 的话它通常会自动挂好；没挂的话，Elsewhere 第一次用到时会准备一份：Mac 上有 Xcode 或系统自带的 iOS 开发者组件（`/Library/Developer/DeveloperDiskImages`）就直接用本机的，否则下载（约 17 MB，来自 [Apple 官方映像的镜像](https://github.com/doronz88/DeveloperDiskImage)，pymobiledevice3 用的也是它），校验和清单配套后缓存在 `~/Library/Application Support/Elsewhere`。挂载时向 Apple 在线申请这台设备专属的签名，设备只接受 Apple 签过名的映像。
 
 ## 系统要求
 

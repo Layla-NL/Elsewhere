@@ -24,6 +24,7 @@ use idevice::{
     usbmuxd::{Connection, UsbmuxdAddr, UsbmuxdConnection},
 };
 use serde::Serialize;
+use sha2::{Digest, Sha384};
 use serde_json::{Value, json};
 
 const LABEL: &str = "Elsewhere";
@@ -296,6 +297,12 @@ async fn ddi_mounted(provider: &dyn IdeviceProvider) -> Result<bool, Failure> {
 }
 
 /// Mounts the personalized developer disk image; Apple signs it for this device online.
+///
+/// Done in two steps on separate connections: first the signature (from the device if it
+/// was signed before, otherwise from Apple's TSS server), then the upload and mount. The
+/// signing request can be slow, and the device drops an image-mounter connection that sits
+/// idle that long, so the upload always starts on a fresh one. If the connection drops
+/// during the upload or mount, it tries once more.
 async fn mount_ddi(provider: &UsbmuxdProvider, dir: &PathBuf) -> Result<(), Failure> {
     let read = |name: &str| {
         let path = dir.join(name);
@@ -308,6 +315,8 @@ async fn mount_ddi(provider: &UsbmuxdProvider, dir: &PathBuf) -> Result<(), Fail
     let manifest = read("BuildManifest.plist").await?;
     let image = read("Image.dmg").await?;
     let trust_cache = read("Image.dmg.trustcache").await?;
+    let build_manifest: plist::Dictionary = plist::from_bytes(&manifest)
+        .map_err(|e| Failure::new("ddi_missing", format!("BuildManifest.plist: {e}")))?;
 
     let mut lockdown = LockdownClient::connect(provider)
         .await
@@ -327,19 +336,61 @@ async fn mount_ddi(provider: &UsbmuxdProvider, dir: &PathBuf) -> Result<(), Fail
         .as_unsigned_integer()
         .ok_or_else(|| Failure::new("failed", "no UniqueChipID"))?;
 
-    let mut mounter = ImageMounter::connect(provider)
+    let ddi_failure = |e: IdeviceError| {
+        let mut f = Failure::from_idevice("mount developer disk image", e);
+        if f.code == "failed" {
+            f.code = "ddi_mount";
+        }
+        f
+    };
+
+    // 1. The signature.
+    let image_hash = Sha384::digest(&image).to_vec();
+    let signature = match connect_mounter(provider)
+        .await?
+        .query_personalization_manifest("DeveloperDiskImage", image_hash)
         .await
-        .map_err(|e| Failure::from_idevice("image mounter", e))?;
-    mounter
-        .mount_personalized(provider, image, trust_cache, &manifest, None, chip_id)
+    {
+        Ok(signature) => signature,
+        // Not signed for this device yet; the device closes the connection after this.
+        Err(_) => connect_mounter(provider)
+            .await?
+            .get_manifest_from_tss(&build_manifest, chip_id)
+            .await
+            .map_err(ddi_failure)?,
+    };
+
+    // 2. Upload and mount, each attempt on a fresh connection.
+    let mut attempt = 0;
+    loop {
+        attempt += 1;
+        let mut mounter = connect_mounter(provider).await?;
+        let result = async {
+            mounter.upload_image("Personalized", &image, signature.clone()).await?;
+            mounter
+                .mount_image("Personalized", signature.clone(), Some(trust_cache.clone()), None)
+                .await
+        }
+        .await;
+        let error = match result {
+            Ok(()) => return Ok(()),
+            Err(e) => e,
+        };
+        // The mount may have gone through even though the reply was lost.
+        if ddi_mounted(provider).await.unwrap_or(false) {
+            return Ok(());
+        }
+        if attempt >= 2 || !matches!(error, IdeviceError::Socket(_)) {
+            return Err(ddi_failure(error));
+        }
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    }
+}
+
+async fn connect_mounter(provider: &UsbmuxdProvider) -> Result<ImageMounter, Failure> {
+    ImageMounter::connect(provider)
         .await
-        .map_err(|e| {
-            let mut f = Failure::from_idevice("mount developer disk image", e);
-            if f.code == "failed" {
-                f.code = "ddi_mount";
-            }
-            f
-        })
+        .map_err(|e| Failure::from_idevice("image mounter", e))
 }
 
 // MARK: Location
