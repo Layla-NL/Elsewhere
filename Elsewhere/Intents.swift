@@ -20,7 +20,7 @@ private enum IntentRunner {
 
     /// 动作做完后，面板上的提示就是结果。
     static func outcome(_ model: AppModel) throws -> String {
-        guard let feedback = model.feedback else { return "完成" }
+        guard let feedback = model.feedback else { return String(localized: "完成") }
         if feedback.kind == .failure {
             throw ElsewhereIntentError(message: [feedback.title, feedback.detail].compactMap { $0 }.joined(separator: "："))
         }
@@ -57,7 +57,7 @@ struct SetCityIntent: AppIntent {
     func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog {
         let model = await IntentRunner.prepare()
         guard let place = model.cities.first(where: { $0.id == city.id }) else {
-            throw ElsewhereIntentError(message: "常用城市里没有「\(city.name)」")
+            throw ElsewhereIntentError(message: String(localized: "常用城市里没有「\(city.name)」"))
         }
         model.feedback = nil
         await model.apply(place: place, source: .city)

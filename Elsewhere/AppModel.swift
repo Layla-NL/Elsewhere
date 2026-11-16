@@ -100,8 +100,8 @@ final class AppModel: ObservableObject {
     var wirelessHint: String? {
         guard !wirelessDevices.isEmpty,
               !phones.contains(where: { wirelessDevices[$0.id] != nil && $0.engine == .builtIn }) else { return nil }
-        let kind = Set(wirelessDevices.values).count == 1 ? wirelessDevices.values.first! : "设备"
-        return "无线连接需要和 Mac 在同一 Wi-Fi，并在\(kind)的无线局域网设置中关闭「私有无线局域网地址」。"
+        let kind = Set(wirelessDevices.values).count == 1 ? wirelessDevices.values.first! : String(localized: "各设备")
+        return String(localized: "无线连接需要和 Mac 在同一 Wi-Fi，并在\(kind)的无线局域网设置中关闭「私有无线局域网地址」。")
     }
 
     /// 同时修改所有已连接、已就绪的设备。
@@ -280,7 +280,7 @@ final class AppModel: ObservableObject {
             return
         }
         if engineMode == .builtIn && !HelperEngine.isAvailable {
-            status = .listFailed("找不到内置组件")
+            status = .listFailed(String(localized: "找不到内置组件"))
             return
         }
 
@@ -356,17 +356,17 @@ final class AppModel: ObservableObject {
     private func restore(_ id: String, to a: AppliedLocation) async {
         guard busy == nil, let tries = pendingRestore[id],
               let phone = phones.first(where: { $0.id == id }), isReady(phone) else { return }
-        busy = "正在恢复定位…"
+        busy = String(localized: "正在恢复定位…")
         let result = await setLocation(on: phone, latitude: a.latitude, longitude: a.longitude)
         busy = nil
         if result.ok {
             pendingRestore[id] = nil
-            report(.success, "已恢复到 \(a.name)", detail: "\(phone.name) 重新连接后，已改回上次的位置。", origin: .background)
+            report(.success, String(localized: "已恢复到 \(a.name)"), detail: String(localized: "\(phone.name) 重新连接后，已改回上次的位置。"), origin: .background)
         } else if tries + 1 < Self.restoreAttempts {
             pendingRestore[id] = tries + 1
         } else {
             pendingRestore[id] = nil
-            report(.failure, "无法恢复定位", detail: result.detail ?? result.title, origin: .background)
+            report(.failure, String(localized: "无法恢复定位"), detail: result.detail ?? result.title, origin: .background)
         }
     }
 
@@ -394,12 +394,12 @@ final class AppModel: ObservableObject {
                         zone.secondsFromGMT() != expected.secondsFromGMT() else { return nil }
                   return (phone, zone)
               }).first else { return nil }
-        let name = current.localizedName(for: .generic, locale: Locale(identifier: "zh_Hans")) ?? current.identifier
+        let name = current.localizedName(for: .generic, locale: AppLanguage.locale) ?? current.identifier
         // 有蜂窝网络时，自动时区以运营商为准，只能手动选。
         if phone.cellular == false {
-            return "\(phone.kind) 的时区（\(name)）与定位不一致。在「设置」>「通用」>「日期与时间」中打开「自动设定时区」。"
+            return String(localized: "\(phone.kind) 的时区（\(name)）与定位不一致。在「设置」>「通用」>「日期与时间」中打开「自动设定时区」。")
         }
-        return "\(phone.kind) 的时区（\(name)）与定位不一致。在「设置」>「通用」>「日期与时间」中关闭「自动设定时区」，然后选择同一时区的城市。"
+        return String(localized: "\(phone.kind) 的时区（\(name)）与定位不一致。在「设置」>「通用」>「日期与时间」中关闭「自动设定时区」，然后选择同一时区的城市。")
     }
 
     private func recomputeStatus() {
@@ -432,7 +432,7 @@ final class AppModel: ObservableObject {
     /// 没准备好就给出失败提示并返回 nil。
     private func readyPhone(origin: Origin) -> PhoneDevice? {
         if case .ready(let phone) = status { return phone }
-        report(.failure, "\(status.device?.kind ?? "iPhone") 还没准备好", detail: status.hint ?? status.badge, origin: origin)
+        report(.failure, String(localized: "\(status.device?.kind ?? "iPhone") 还没准备好"), detail: status.hint ?? status.badge, origin: origin)
         return nil
     }
 
@@ -457,13 +457,13 @@ final class AppModel: ObservableObject {
         } else if Self.demo, let demoExit = exit {
             info = demoExit
         } else {
-            busy = "正在查询代理出口…"
+            busy = String(localized: "正在查询代理出口…")
             do {
                 info = try await ExitIPService.lookup(proxy: exitProxy)
             } catch {
                 busy = nil
                 exitError = error.localizedDescription
-                report(.failure, "查不到出口 IP 的位置", detail: error.localizedDescription, origin: origin)
+                report(.failure, String(localized: "查不到出口 IP 的位置"), detail: error.localizedDescription, origin: origin)
                 return
             }
             busy = nil
@@ -473,7 +473,7 @@ final class AppModel: ObservableObject {
         lastSeenIP = info.ip
         lastExitFetch = Date()
         pendingExitChange = nil
-        await apply(name: "出口 · \(info.displayCity)", latitude: info.latitude, longitude: info.longitude,
+        await apply(name: String(localized: "出口 · \(info.displayCity)"), latitude: info.latitude, longitude: info.longitude,
                     source: .exitIP, ip: info.ip, phones: phones, origin: origin)
     }
 
@@ -485,7 +485,7 @@ final class AppModel: ObservableObject {
 
     private func apply(name: String, latitude: Double, longitude: Double, source: LocationSource,
                        ip: String?, phones: [PhoneDevice], origin: Origin) async {
-        busy = "正在修改定位…"
+        busy = String(localized: "正在修改定位…")
         var done: [PhoneDevice] = []
         var failures: [(PhoneDevice, EngineResult)] = []
         for phone in phones {
@@ -502,8 +502,8 @@ final class AppModel: ObservableObject {
         if failures.isEmpty {
             var detail = Place.format(latitude, longitude)
             if let ip { detail += " · IP \(ip)" }
-            if done.count > 1 { detail += " · \(done.count) 台设备" }
-            report(.success, "已改到 \(name)", detail: detail, origin: origin)
+            if done.count > 1 { detail += String(localized: " · \(done.count) 台设备") }
+            report(.success, String(localized: "已改到 \(name)"), detail: detail, origin: origin)
         } else {
             let (phone, result) = failures[0]
             let title = phones.count > 1 ? "\(phone.name)：\(result.title)" : result.title
@@ -518,7 +518,7 @@ final class AppModel: ObservableObject {
         for id in applied?.devices ?? [] where !phones.contains(where: { $0.id == id }) {
             if let p = self.phones.first(where: { $0.id == id }), isReady(p) { phones.append(p) }
         }
-        busy = "正在恢复真实定位…"
+        busy = String(localized: "正在恢复真实定位…")
         var failures: [(PhoneDevice, EngineResult)] = []
         for phone in phones {
             let result = await clearLocation(on: phone)
@@ -528,8 +528,8 @@ final class AppModel: ObservableObject {
         if failures.isEmpty {
             applied = nil
             // Wi-Fi 版 iPad 没有 GPS，要等它重新用 Wi-Fi 算出位置，这段时间会停在模拟的地方。
-            let note = phones.contains { $0.kind == "iPad" } ? "iPad 可能需要片刻才能重新定位。" : nil
-            report(.success, "已恢复真实定位", detail: note, origin: .panel)
+            let note = phones.contains { $0.kind == "iPad" } ? String(localized: "iPad 可能需要片刻才能重新定位。") : nil
+            report(.success, String(localized: "已恢复真实定位"), detail: note, origin: .panel)
         } else {
             let (phone, result) = failures[0]
             let title = phones.count > 1 ? "\(phone.name)：\(result.title)" : result.title
@@ -548,11 +548,11 @@ final class AppModel: ObservableObject {
 
     func enableWireless() async {
         guard busy == nil, case .ready(let phone) = status else { return }
-        busy = "正在开启无线连接…"
+        busy = String(localized: "正在开启无线连接…")
         let result = await HelperEngine.setWireless(device: phone, enabled: true)
         busy = nil
         if result.ok {
-            report(.success, "已开启无线连接", detail: "在同一 Wi-Fi 下，拔线后仍可使用。", origin: .panel)
+            report(.success, String(localized: "已开启无线连接"), detail: String(localized: "在同一 Wi-Fi 下，拔线后仍可使用。"), origin: .panel)
         } else {
             report(.failure, result.title, detail: result.detail, origin: .panel)
         }
@@ -574,12 +574,12 @@ final class AppModel: ObservableObject {
         }
         if phone.engine == .builtIn {
             let result = await HelperEngine.setLocation(device: phone, latitude: latitude, longitude: longitude) {
-                self.busy = "正在下载开发者组件…"
+                self.busy = String(localized: "正在下载开发者组件…")
             }
             guard !result.ok, canFallBack(phone, after: result) else { return result }
         }
         let r = await DeviceService.setLocation(device: phone.id, latitude: latitude, longitude: longitude)
-        return EngineResult(ok: r.ok, title: "无法修改定位", detail: r.ok ? nil : r.output)
+        return EngineResult(ok: r.ok, title: String(localized: "无法修改定位"), detail: r.ok ? nil : r.output)
     }
 
     private func clearLocation(on phone: PhoneDevice) async -> EngineResult {
@@ -592,7 +592,7 @@ final class AppModel: ObservableObject {
             guard !result.ok, canFallBack(phone, after: result) else { return result }
         }
         let r = await DeviceService.clearLocation(device: phone.id)
-        return EngineResult(ok: r.ok, title: "无法恢复定位", detail: r.ok ? nil : r.output)
+        return EngineResult(ok: r.ok, title: String(localized: "无法恢复定位"), detail: r.ok ? nil : r.output)
     }
 
     // MARK: 出口 IP
@@ -601,7 +601,7 @@ final class AppModel: ObservableObject {
         guard exitFeatures else { return }
         guard !Self.demo else { return }
         guard !phoneProxyInvalid else {
-            exitError = "手机代理地址无效"
+            exitError = String(localized: "手机代理地址无效")
             return
         }
         exitLoading = true
@@ -653,8 +653,8 @@ final class AppModel: ObservableObject {
             return
         }
         pendingExitChange = info
-        Notifier.shared.post(title: "代理出口变了",
-                             body: "现在是 \(info.summary)（\(info.ip)）。点「改过去」把 iPhone 定位跟过去。",
+        Notifier.shared.post(title: String(localized: "代理出口变了"),
+                             body: String(localized: "现在是 \(info.summary)（\(info.ip)）。点「改过去」把 iPhone 定位跟过去。"),
                              category: Notifier.exitChangedCategory)
     }
 
@@ -690,7 +690,7 @@ final class AppModel: ObservableObject {
                 try SMAppService.mainApp.unregister()
             }
         } catch {
-            report(.failure, "设置开机启动失败", detail: error.localizedDescription, origin: .panel)
+            report(.failure, String(localized: "设置开机启动失败"), detail: error.localizedDescription, origin: .panel)
         }
         refreshLaunchAtLogin()
     }

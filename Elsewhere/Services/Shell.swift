@@ -14,8 +14,8 @@ struct CommandResult: Sendable {
         var parts = [stderr, stdout]
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
-        if timedOut { parts.append("（命令超时，已终止）") }
-        if parts.isEmpty { return "退出码 \(status)，没有输出。" }
+        if timedOut { parts.append(String(localized: "（命令超时，已终止）")) }
+        if parts.isEmpty { return String(localized: "退出码 \(status)，没有输出。") }
         return parts.joined(separator: "\n")
     }
 }
@@ -48,7 +48,7 @@ enum Shell {
         do {
             try process.run()
         } catch {
-            return CommandResult(status: -1, stdout: "", stderr: "无法启动 \(executable)：\(error.localizedDescription)")
+            return CommandResult(status: -1, stdout: "", stderr: String(localized: "无法启动 \(executable)：\(error.localizedDescription)"))
         }
 
         // 两个管道分别在后台读完，避免某一边写满缓冲区导致死锁。

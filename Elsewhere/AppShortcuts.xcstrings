@@ -1,0 +1,97 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "${applicationName} 改到常用城市" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "${applicationName} move to favorite city"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "${applicationName} 改到常用城市"
+          }
+        }
+      }
+    },
+    "${applicationName} 跟随出口" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "${applicationName} follow exit"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "${applicationName} 跟随出口"
+          }
+        }
+      }
+    },
+    "用 ${applicationName} 恢复真实定位" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringSet" : {
+            "state" : "new",
+            "values" : [
+              "用 ${applicationName} 恢复真实定位"
+            ]
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use real location with ${applicationName}"
+          }
+        }
+      }
+    },
+    "用 ${applicationName} 改到 ${city}" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringSet" : {
+            "state" : "new",
+            "values" : [
+              "用 ${applicationName} 改到 ${city}",
+              "${applicationName} 改到常用城市"
+            ]
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move to ${city} with ${applicationName}"
+          }
+        }
+      }
+    },
+    "用 ${applicationName} 跟随代理出口" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringSet" : {
+            "state" : "new",
+            "values" : [
+              "用 ${applicationName} 跟随代理出口",
+              "${applicationName} 跟随出口"
+            ]
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Follow proxy exit with ${applicationName}"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

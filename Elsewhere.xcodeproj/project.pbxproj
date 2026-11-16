@@ -85,9 +85,10 @@
 				};
 			};
 			buildConfigurationList = E15E0000000000000000A00B /* Build configuration list for PBXProject "Elsewhere" */;
-			developmentRegion = "zh-Hans";
+			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
+				en,
 				"zh-Hans",
 				Base,
 			);
@@ -207,7 +208,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Elsewhere;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = YES;
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Elsewhere 通过局域网连接手机的代理共享，查询手机的代理出口。";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Elsewhere connects to your phone's proxy sharing over the local network to look up the phone's proxy exit.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "MIT License";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -237,7 +238,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Elsewhere;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = YES;
-				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Elsewhere 通过局域网连接手机的代理共享，查询手机的代理出口。";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Elsewhere connects to your phone's proxy sharing over the local network to look up the phone's proxy exit.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "MIT License";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

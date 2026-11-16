@@ -43,7 +43,7 @@ struct PhoneDevice: Identifiable, Equatable {
         var parts: [String] = []
         if !model.isEmpty { parts.append(model) }
         if !osVersion.isEmpty { parts.append("\(platform.isEmpty ? "iOS" : platform) \(osVersion)") }
-        if isWireless { parts.append("无线") }
+        if isWireless { parts.append(String(localized: "无线")) }
         return parts.joined(separator: " · ")
     }
 }
@@ -72,13 +72,13 @@ enum DeviceStatus: Equatable {
 
     var badge: String {
         switch self {
-        case .checking: return "检查中"
-        case .toolsMissing: return "缺少 Xcode"
-        case .listFailed: return "出错"
-        case .noDevice, .unreachable: return "未连接"
-        case .notTrusted: return "未信任"
-        case .developerModeOff: return "需开发者模式"
-        case .ready: return "已连接"
+        case .checking: return String(localized: "检查中")
+        case .toolsMissing: return String(localized: "缺少 Xcode")
+        case .listFailed: return String(localized: "出错")
+        case .noDevice, .unreachable: return String(localized: "未连接")
+        case .notTrusted: return String(localized: "未信任")
+        case .developerModeOff: return String(localized: "需开发者模式")
+        case .ready: return String(localized: "已连接")
         }
     }
 
@@ -88,17 +88,17 @@ enum DeviceStatus: Equatable {
         case .checking, .ready:
             return nil
         case .toolsMissing:
-            return "未找到 Xcode。可在设置中将定位方式改为「自动」。"
+            return String(localized: "未找到 Xcode。可在设置中将定位方式改为「自动」。")
         case .listFailed(let output):
-            return "无法读取设备。\(output)"
+            return String(localized: "无法读取设备。\(output)")
         case .noDevice:
-            return "用数据线连接 iPhone 或 iPad。"
+            return String(localized: "用数据线连接 iPhone 或 iPad。")
         case .unreachable(let d):
-            return "连接并解锁 \(d.kind)。"
+            return String(localized: "连接并解锁 \(d.kind)。")
         case .notTrusted(let d):
-            return "解锁 \(d.kind)，然后轻点「信任」。"
+            return String(localized: "解锁 \(d.kind)，然后轻点「信任」。")
         case .developerModeOff(let d):
-            return "在 \(d.kind) 上打开「设置」>「隐私与安全性」>「开发者模式」，然后重新启动。"
+            return String(localized: "在 \(d.kind) 上打开「设置」>「隐私与安全性」>「开发者模式」，然后重新启动。")
         }
     }
 }

@@ -1,6 +1,12 @@
 import Foundation
 import CoreLocation
 
+/// 界面实际用的语言：跟随系统，只有简体中文和英文，其他语言显示英文。
+enum AppLanguage {
+    static var locale: Locale { Locale(identifier: Bundle.main.preferredLocalizations.first ?? "en") }
+    static var isChinese: Bool { locale.language.languageCode == .chinese }
+}
+
 /// 一个可以一键切过去的地点。
 struct Place: Codable, Identifiable, Hashable {
     var id: UUID = UUID()
@@ -23,17 +29,17 @@ struct Place: Codable, Identifiable, Hashable {
     }
 
     static let defaults: [Place] = [
-        Place(name: "柏林", latitude: 52.5200, longitude: 13.4050),
-        Place(name: "法兰克福", latitude: 50.1109, longitude: 8.6821),
-        Place(name: "伦敦", latitude: 51.5074, longitude: -0.1278),
-        Place(name: "巴黎", latitude: 48.8566, longitude: 2.3522),
-        Place(name: "阿姆斯特丹", latitude: 52.3676, longitude: 4.9041),
-        Place(name: "纽约", latitude: 40.7580, longitude: -73.9855),
-        Place(name: "洛杉矶", latitude: 34.0522, longitude: -118.2437),
-        Place(name: "旧金山", latitude: 37.7749, longitude: -122.4194),
-        Place(name: "东京", latitude: 35.6812, longitude: 139.7671),
-        Place(name: "香港", latitude: 22.2800, longitude: 114.1588),
-        Place(name: "新加坡", latitude: 1.2834, longitude: 103.8607),
+        Place(name: String(localized: "柏林"), latitude: 52.5200, longitude: 13.4050),
+        Place(name: String(localized: "法兰克福"), latitude: 50.1109, longitude: 8.6821),
+        Place(name: String(localized: "伦敦"), latitude: 51.5074, longitude: -0.1278),
+        Place(name: String(localized: "巴黎"), latitude: 48.8566, longitude: 2.3522),
+        Place(name: String(localized: "阿姆斯特丹"), latitude: 52.3676, longitude: 4.9041),
+        Place(name: String(localized: "纽约"), latitude: 40.7580, longitude: -73.9855),
+        Place(name: String(localized: "洛杉矶"), latitude: 34.0522, longitude: -118.2437),
+        Place(name: String(localized: "旧金山"), latitude: 37.7749, longitude: -122.4194),
+        Place(name: String(localized: "东京"), latitude: 35.6812, longitude: 139.7671),
+        Place(name: String(localized: "香港"), latitude: 22.2800, longitude: 114.1588),
+        Place(name: String(localized: "新加坡"), latitude: 1.2834, longitude: 103.8607),
     ]
 }
 
@@ -42,9 +48,9 @@ enum LocationSource: String, Codable {
 
     var label: String {
         switch self {
-        case .exitIP: return "跟随出口"
-        case .city: return "常用城市"
-        case .custom: return "自定义"
+        case .exitIP: return String(localized: "跟随出口")
+        case .city: return String(localized: "常用城市")
+        case .custom: return String(localized: "自定义")
         }
     }
 }
@@ -82,8 +88,8 @@ enum EngineMode: String, Codable, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .auto: return "自动"
-        case .builtIn: return "内置"
+        case .auto: return String(localized: "自动")
+        case .builtIn: return String(localized: "内置")
         case .xcode: return "Xcode"
         }
     }
@@ -96,9 +102,9 @@ enum ExitWatchMode: String, Codable, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .off: return "不检测"
-        case .notify: return "提醒我"
-        case .auto: return "自动改"
+        case .off: return String(localized: "不检测")
+        case .notify: return String(localized: "提醒我")
+        case .auto: return String(localized: "自动改")
         }
     }
 }

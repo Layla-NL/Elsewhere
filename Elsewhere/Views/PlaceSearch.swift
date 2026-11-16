@@ -101,7 +101,7 @@ enum OpenStreetMap {
     private static func get(_ url: URL) async throws -> Data {
         var request = URLRequest(url: url, timeoutInterval: 10)
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
-        request.setValue("zh-CN,zh;q=0.9,en;q=0.8", forHTTPHeaderField: "Accept-Language")
+        request.setValue(AppLanguage.isChinese ? "zh-CN,zh;q=0.9,en;q=0.8" : "en,zh-CN;q=0.5", forHTTPHeaderField: "Accept-Language")
         let (data, response) = try await URLSession.shared.data(for: request)
         guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
         return data
@@ -139,7 +139,7 @@ enum OpenStreetMap {
             URLQueryItem(name: "q", value: text),
             URLQueryItem(name: "format", value: "jsonv2"),
             URLQueryItem(name: "limit", value: String(limit)),
-            URLQueryItem(name: "accept-language", value: "zh-CN"),
+            URLQueryItem(name: "accept-language", value: AppLanguage.isChinese ? "zh-CN" : "en"),
         ]
         struct Item: Decodable {
             let name: String?
@@ -206,10 +206,10 @@ enum Geo {
         try? await CLGeocoder().reverseGeocodeLocation(location).first?.timeZone
     }
 
-    /// 坐标 → 中文地名（城市优先）。
+    /// 坐标 → 界面语言的地名（城市优先）。
     static func placeName(for coordinate: CLLocationCoordinate2D) async -> String? {
         let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-        let zh = Locale(identifier: "zh_Hans")
+        let zh = AppLanguage.locale
         if #available(macOS 26.0, *) {
             guard let request = MKReverseGeocodingRequest(location: location) else { return nil }
             request.preferredLocale = zh

@@ -74,7 +74,7 @@ struct DeviceHeader: View {
                     Text(model.status.device?.name ?? "iPhone")
                         .font(.headline)
                         .lineLimit(1)
-                    Text(model.status.device?.subtitle ?? "等待连接")
+                    Text(model.status.device?.subtitle ?? String(localized: "等待连接"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -175,8 +175,8 @@ struct CurrentLocationCard: View {
                         .padding(.top, 2)
                 }
                 Text(model.autoRestore
-                     ? "\(model.status.device?.kind ?? "iPhone") 重新启动后，再次连接时会自动改回。"
-                     : "重新启动 \(model.status.device?.kind ?? "iPhone") 后会恢复真实定位。")
+                     ? String(localized: "\(model.status.device?.kind ?? "iPhone") 重新启动后，再次连接时会自动改回。")
+                     : String(localized: "重新启动 \(model.status.device?.kind ?? "iPhone") 后会恢复真实定位。"))
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -207,7 +207,7 @@ struct FollowExitSection: View {
                     } else {
                         Image(systemName: "network")
                     }
-                    Text(model.busy ?? "跟随代理出口")
+                    Text(model.busy ?? String(localized: "跟随代理出口"))
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -218,7 +218,7 @@ struct FollowExitSection: View {
             HStack(spacing: 4) {
                 Group {
                     if let e = model.exit {
-                        Text("\(model.exitFromPhone ? "手机出口" : "出口") \(e.ip) · \(e.summary)")
+                        Text(verbatim: "\(model.exitFromPhone ? String(localized: "手机出口") : String(localized: "出口")) \(e.ip) · \(e.summary)")
                     } else if model.exitError != nil {
                         Text("出口 IP 查询失败")
                     } else {

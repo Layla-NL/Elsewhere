@@ -8,11 +8,11 @@ enum MainSection: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .location: return "定位"
-        case .map: return "地图"
-        case .cities: return "常用城市"
-        case .device: return "设备"
-        case .settings: return "设置"
+        case .location: return String(localized: "定位")
+        case .map: return String(localized: "地图")
+        case .cities: return String(localized: "常用城市")
+        case .device: return String(localized: "设备")
+        case .settings: return String(localized: "设置")
         }
     }
 

@@ -28,7 +28,7 @@ enum HelperEngine {
 
     private static func run(_ arguments: [String], timeout: TimeInterval) async -> Reply {
         guard let executable else {
-            return Reply(ok: false, code: "missing", error: "找不到内置组件", json: [:])
+            return Reply(ok: false, code: "missing", error: String(localized: "找不到内置组件"), json: [:])
         }
         let result = await Shell.run(executable, arguments, timeout: timeout)
         let line = result.stdout.split(separator: "\n").last.map(String.init) ?? ""
@@ -46,7 +46,7 @@ enum HelperEngine {
 
     static func listPhones() async throws -> [PhoneDevice] {
         let reply = await run(["list"], timeout: 30)
-        guard reply.ok else { throw DeviceService.ListError.failed(reply.error ?? "读取设备失败") }
+        guard reply.ok else { throw DeviceService.ListError.failed(reply.error ?? String(localized: "读取设备失败")) }
         let devices = reply.json["devices"] as? [[String: Any]] ?? []
         return devices.compactMap { d in
             guard let udid = d["udid"] as? String else { return nil }
@@ -83,21 +83,21 @@ enum HelperEngine {
             do {
                 try await DeveloperDiskImage.prepare()
             } catch {
-                return EngineResult(ok: false, title: "无法下载开发者组件", detail: error.localizedDescription)
+                return EngineResult(ok: false, title: String(localized: "无法下载开发者组件"), detail: error.localizedDescription)
             }
             reply = await run(args, timeout: 120)
         }
-        return result(of: reply, device: device, action: "修改定位")
+        return result(of: reply, device: device, action: String(localized: "修改定位"))
     }
 
     /// 开启或关闭无线连接，和访达里的「连接 Wi-Fi 时显示此 iPhone」是同一个开关。
     static func setWireless(device: PhoneDevice, enabled: Bool) async -> EngineResult {
         result(of: await run(["wifi", device.id, enabled ? "on" : "off"], timeout: 30),
-               device: device, action: "更改无线连接")
+               device: device, action: String(localized: "更改无线连接"))
     }
 
     static func clearLocation(device: PhoneDevice) async -> EngineResult {
-        result(of: await run(["clear", device.id], timeout: 60), device: device, action: "恢复定位")
+        result(of: await run(["clear", device.id], timeout: 60), device: device, action: String(localized: "恢复定位"))
     }
 
     private static func result(of reply: Reply, device: PhoneDevice, action: String) -> EngineResult {
@@ -105,13 +105,13 @@ enum HelperEngine {
         let kind = device.kind
         let title: String
         switch reply.code {
-        case "locked": title = "请先解锁 \(kind)"
-        case "not_paired": title = "请在 \(kind) 上信任这台 Mac"
-        case "not_found": title = "\(kind) 未连接"
-        case "ddi_missing": title = "缺少开发者组件"
-        case "ddi_mount": title = "无法准备开发者组件，请保持 \(kind) 解锁，用数据线连接后再试"
-        case "no_service": title = "\(kind) 暂时无法\(action)"
-        default: title = "无法\(action)"
+        case "locked": title = String(localized: "请先解锁 \(kind)")
+        case "not_paired": title = String(localized: "请在 \(kind) 上信任这台 Mac")
+        case "not_found": title = String(localized: "\(kind) 未连接")
+        case "ddi_missing": title = String(localized: "缺少开发者组件")
+        case "ddi_mount": title = String(localized: "无法准备开发者组件，请保持 \(kind) 解锁，用数据线连接后再试")
+        case "no_service": title = String(localized: "\(kind) 暂时无法\(action)")
+        default: title = String(localized: "无法\(action)")
         }
         return EngineResult(ok: false, title: title, detail: reply.error, code: reply.code)
     }
@@ -148,7 +148,7 @@ enum DeveloperDiskImage {
 
     enum Problem: LocalizedError {
         case mismatch
-        var errorDescription: String? { "下载到的开发者组件和清单不配套（Image.dmg 的摘要不在 BuildManifest.plist 里）" }
+        var errorDescription: String? { String(localized: "下载到的开发者组件和清单不配套（Image.dmg 的摘要不在 BuildManifest.plist 里）") }
     }
 
     /// 三个文件齐全，且 Image.dmg 正是清单里某个设备要的个性化映像。

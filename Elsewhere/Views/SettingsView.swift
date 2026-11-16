@@ -83,8 +83,8 @@ struct SettingsView: View {
                         .textFieldStyle(.roundedBorder)
                         .font(.system(.body, design: .monospaced))
                     Text(model.phoneProxyInvalid
-                         ? "请填写「IP 地址:端口」。"
-                         : "在手机的代理 App 中开启代理共享，填写它显示的地址和端口。手机和 Mac 需在同一 Wi-Fi。")
+                         ? String(localized: "请填写「IP 地址:端口」。")
+                         : String(localized: "在手机的代理 App 中开启代理共享，填写它显示的地址和端口。手机和 Mac 需在同一 Wi-Fi。"))
                         .font(.caption)
                         .foregroundStyle(model.phoneProxyInvalid ? .orange : .secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -108,9 +108,9 @@ struct SettingsView: View {
                 .labelsHidden()
                 .frame(maxWidth: .infinity)
                 VStack(alignment: .leading, spacing: 3) {
-                    EngineLine(name: "内置", available: HelperEngine.isAvailable, detail: "无需 Xcode")
+                    EngineLine(name: String(localized: "内置"), available: HelperEngine.isAvailable, detail: String(localized: "无需 Xcode"))
                     EngineLine(name: "Xcode", available: model.toolsPath != nil,
-                               detail: model.toolsPath == nil ? "未安装" : "已安装")
+                               detail: model.toolsPath == nil ? String(localized: "未安装") : String(localized: "已安装"))
                 }
             }
             .card()
@@ -143,8 +143,8 @@ private struct EngineLine: View {
 }
 
 private struct SettingRow: View {
-    let title: String
-    let detail: String?
+    let title: LocalizedStringKey
+    let detail: LocalizedStringKey?
     @Binding var isOn: Bool
 
     var body: some View {

@@ -22,7 +22,7 @@ extension View {
 struct PageHeader: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.inMainWindow) private var inMainWindow
-    let title: String
+    let title: LocalizedStringKey
 
     var body: some View {
         if !inMainWindow { header }
@@ -49,7 +49,7 @@ struct PageHeader: View {
 }
 
 struct SectionTitle: View {
-    let title: String
+    let title: LocalizedStringKey
     var body: some View {
         Text(title)
             .font(.subheadline.weight(.semibold))
@@ -154,18 +154,20 @@ struct FeedbackView: View {
 }
 
 enum Fmt {
-    static let zh = Locale(identifier: "zh_Hans")
-
     static func time(_ date: Date) -> String {
-        let cal = Calendar.current
-        if cal.isDateInToday(date) {
-            return "今天 " + date.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits).locale(zh))
+        let locale = AppLanguage.locale
+        if AppLanguage.isChinese {
+            let clock = date.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits).locale(locale))
+            if Calendar.current.isDateInToday(date) { return String(localized: "今天 \(clock)") }
+            return date.formatted(.dateTime.month().day().hour(.twoDigits(amPM: .omitted)).minute(.twoDigits).locale(locale))
         }
-        return date.formatted(.dateTime.month().day().hour(.twoDigits(amPM: .omitted)).minute(.twoDigits).locale(zh))
+        let clock = date.formatted(.dateTime.hour().minute().locale(locale))
+        if Calendar.current.isDateInToday(date) { return String(localized: "今天 \(clock)") }
+        return date.formatted(.dateTime.month(.abbreviated).day().hour().minute().locale(locale))
     }
 
     static func relative(_ date: Date) -> String {
-        if Date().timeIntervalSince(date) < 60 { return "刚刚" }
-        return date.formatted(Date.RelativeFormatStyle(presentation: .named, unitsStyle: .wide, locale: zh))
+        if Date().timeIntervalSince(date) < 60 { return String(localized: "刚刚") }
+        return date.formatted(Date.RelativeFormatStyle(presentation: .named, unitsStyle: .wide, locale: AppLanguage.locale))
     }
 }

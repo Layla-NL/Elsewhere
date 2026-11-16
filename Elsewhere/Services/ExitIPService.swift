@@ -12,7 +12,7 @@ struct ExitInfo: Codable, Equatable {
 
     var countryName: String {
         guard !country.isEmpty else { return "" }
-        return Locale(identifier: "zh_Hans").localizedString(forRegionCode: country) ?? country
+        return AppLanguage.locale.localizedString(forRegionCode: country) ?? country
     }
 
     var displayCity: String {
@@ -25,7 +25,7 @@ struct ExitInfo: Codable, Equatable {
     var summary: String {
         let c = countryName
         if c.isEmpty || c == displayCity { return displayCity }
-        return "\(displayCity)，\(c)"
+        return String(localized: "\(displayCity)，\(c)")
     }
 }
 
@@ -36,9 +36,9 @@ enum ExitIPError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .proxy(let address, let detail): return "无法通过手机代理 \(address) 查询：\(detail)"
+        case .proxy(let address, let detail): return String(localized: "无法通过手机代理 \(address) 查询：\(detail)")
         case .http(let code, let body): return "HTTP \(code)：\(body)"
-        case .badResponse(let body): return "返回内容里没有位置信息：\(body)"
+        case .badResponse(let body): return String(localized: "返回内容里没有位置信息：\(body)")
         }
     }
 }
@@ -131,6 +131,6 @@ enum ExitIPService {
                 if !ip.isEmpty, ip.count <= 45 { return ip }
             }
         }
-        throw ExitIPError.badResponse("查不到出口 IP")
+        throw ExitIPError.badResponse(String(localized: "查不到出口 IP"))
     }
 }

@@ -16,9 +16,9 @@ private enum MapLook: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var label: String {
         switch self {
-        case .standard: return "标准"
-        case .hybrid: return "混合"
-        case .imagery: return "卫星"
+        case .standard: return String(localized: "标准")
+        case .hybrid: return String(localized: "混合")
+        case .imagery: return String(localized: "卫星")
         }
     }
     var style: MapStyle {
@@ -57,7 +57,7 @@ struct MapWindowView: View {
                     }
                 }
                 if let exit = model.exit {
-                    Annotation("代理出口 · \(exit.displayCity)", coordinate: map(exit.latitude, exit.longitude)) {
+                    Annotation(String(localized: "代理出口 · \(exit.displayCity)"), coordinate: map(exit.latitude, exit.longitude)) {
                         Badge(symbol: "globe", color: .orange)
                     }
                 }
@@ -156,7 +156,7 @@ struct MapWindowView: View {
                 }
                 Divider().padding(.leading, 34)
             }
-            suggestionRow(title: "按回车精确搜索「\(search.query)」", subtitle: "海外地名用中文也能搜到", symbol: "return") {
+            suggestionRow(title: String(localized: "按回车精确搜索「\(search.query)」"), subtitle: String(localized: "海外地名用中文也能搜到"), symbol: "return") {
                 Task { await submitSearch() }
             }
         }
@@ -244,7 +244,7 @@ struct MapWindowView: View {
                 Button {
                     guard let gps = gpsPin else { return }
                     model.addCity(Place(name: displayName, latitude: gps.latitude, longitude: gps.longitude))
-                    note = "已收藏到常用城市"
+                    note = String(localized: "已收藏到常用城市")
                 } label: {
                     Label("收藏", systemImage: "star")
                 }
@@ -301,7 +301,7 @@ struct MapWindowView: View {
                     .textFieldStyle(.plain)
                     .font(.headline)
                 Text(Place.format(gps.latitude, gps.longitude)
-                     + (ChinaCoordinate.isInMainland(pin!) ? "  （已从地图坐标转为 GPS 坐标）" : ""))
+                     + (ChinaCoordinate.isInMainland(pin!) ? String(localized: "  （已从地图坐标转为 GPS 坐标）") : ""))
                     .font(.caption)
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
@@ -342,7 +342,7 @@ struct MapWindowView: View {
 
     private var displayName: String {
         let trimmed = pinName.trimmingCharacters(in: .whitespaces)
-        return trimmed.isEmpty ? "地图选点" : trimmed
+        return trimmed.isEmpty ? String(localized: "地图选点") : trimmed
     }
 
     private func map(_ latitude: Double, _ longitude: Double) -> CLLocationCoordinate2D {

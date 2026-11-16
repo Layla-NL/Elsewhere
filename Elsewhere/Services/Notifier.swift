@@ -14,7 +14,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     func setUp() {
         let center = UNUserNotificationCenter.current()
         center.delegate = self
-        let follow = UNNotificationAction(identifier: Self.followAction, title: "改过去", options: [])
+        let follow = UNNotificationAction(identifier: Self.followAction, title: String(localized: "改过去"), options: [])
         let category = UNNotificationCategory(identifier: Self.exitChangedCategory, actions: [follow],
                                               intentIdentifiers: [], options: [])
         center.setNotificationCategories([category])

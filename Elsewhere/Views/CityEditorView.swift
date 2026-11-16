@@ -97,11 +97,11 @@ struct CityEditorView: View {
             lonText = pasted[1]
         }
         guard let lat = Double(latText.trimmingCharacters(in: .whitespaces)), (-90...90).contains(lat) else {
-            error = "纬度要在 -90 到 90 之间。"
+            error = String(localized: "纬度要在 -90 到 90 之间。")
             return
         }
         guard let lon = Double(lonText.trimmingCharacters(in: .whitespaces)), (-180...180).contains(lon) else {
-            error = "经度要在 -180 到 180 之间。"
+            error = String(localized: "经度要在 -180 到 180 之间。")
             return
         }
         model.addCity(Place(name: name.trimmingCharacters(in: .whitespaces), latitude: lat, longitude: lon))
